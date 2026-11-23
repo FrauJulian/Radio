@@ -108,4 +108,24 @@ public sealed class SongImportServiceTests : IDisposable
         Assert.Throws<SongImportException>(() => _service.Import(Path.Combine(SourceDirectory, "missing.mp3")));
         Assert.Empty(MusicFiles());
     }
-}
+
+    [Fact]
+    public void UploadController_ImportsEachFileAndReportsFailuresPerFile()
+    {
+        var controller = new Radiosender.Controllers.UploadController(_service);
+        string[] files =
+        [
+            CreateWav("first.wav", TimeSpan.FromSeconds(2)),
+            Path.Combine(SourceDirectory, "notes.txt"),
+            CreateWav("second.wav", TimeSpan.FromSeconds(3)),
+        ];
+        File.WriteAllText(files[1], "not audio");
+
+        var results = files.Select(controller.Upload).ToList();
+
+        Assert.Equal([true, false, true], results.Select(r => r.Success));
+        Assert.Equal("first", results[0].Song!.Title);
+        Assert.Null(results[1].Song);
+        Assert.Contains("MP3 and WAV", results[1].Message);
+        Assert.Equal(2, _repository.GetAll().Count);
+    }}

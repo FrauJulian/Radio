@@ -6,6 +6,6 @@
     <StackPanel Margin="24">
         <ui:TextBlock FontTypography="Title" Text="Radiosender" />
         <ui:TextBlock Margin="0,8,0,0" TextWrapping="Wrap"
-                      Text="Add music under Library, Upload or Openverse, then plan and start a broadcast on the Schedule page." />
+                      Text="Add music on the Import page, then plan and start a broadcast on the Schedule page." />
     </StackPanel>
 </Page>

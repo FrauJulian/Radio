@@ -23,10 +23,11 @@ On first start the app creates its data under `%LOCALAPPDATA%\Radiosender`:
 
 ## Usage
 
-1. **Upload**: pick MP3 or WAV files. The app copies them into the music folder, reads title and artist from the file tags and measures the duration.
-2. **Openverse**: search the [Openverse](https://openverse.org) audio catalog and add a result. The app downloads the file and stores its license and attribution with the song.
-3. **Library**: lists and searches all songs. Edit title, artist, license and attribution, or delete a song.
-4. **Schedule**:
+1. **Import**: one page for both ways of adding music. Every result, added or failed, is listed under "Added in this session", with a link to the Library.
+   - **From computer**: drop MP3 or WAV files on the page or click **Choose files...**; several files at once are fine. The app copies each file into the music folder, reads title and artist from the file tags and measures the duration. A file that fails is reported and the others still get imported.
+   - **Openverse**: search the [Openverse](https://openverse.org) audio catalog, preview a result and import it with **Import to library** or a double-click. The app downloads the file and stores its license and attribution with the song. Results that are already in the library or have no duration are marked and cannot be imported.
+2. **Library**: lists and searches all songs. Edit title, artist, license and attribution, or delete a song.
+3. **Schedule**:
    1. Enter the number of hours (1 to 24) and click **Create schedule**. The plan starts at the next full hour.
    2. The timeline shows every item with start time, type (song, news, ad, moderator), title and duration.
    3. **Start** puts the plan on air on the real clock. Before the planned start the now-playing card shows when the broadcast begins; if the plan has already begun, playback joins at the next item. **Stop** ends it. The now-playing card shows the current item, its progress and the volume.
@@ -89,8 +90,8 @@ For each downloaded track the app stores the license (for example `CC BY 4.0`) a
 | Remaining time filled with music | Songs fill each slot | Done |
 | Music comes from a SQLite database | `SongRepository`, `radiosender.db` | Done |
 | Library can be extended at any time: add, edit, delete | Library page and `SongEditWindow` | Done |
-| Add by simple upload | Upload page (MP3, WAV) | Done |
-| Add through the Openverse API | Openverse page | Done |
+| Add by simple upload | Import page, "From computer" (MP3, WAV, several files, drag and drop) | Done |
+| Add through the Openverse API | Import page, "Openverse" | Done |
 | Music player is a singleton class | `MusicPlayer.Instance` | Done |
 | Hot swap: a requested song replaces an item during the planned run, everything after adapts | Song request on the Schedule page; `ScheduleGenerator.Replace`, `PlaybackEngine.ReplaceUpcoming` | Done |
 | News and ad blocks are shown | Timeline with type labels, now-playing card | Done |
