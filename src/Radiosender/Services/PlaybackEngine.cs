@@ -61,6 +61,21 @@ public sealed class PlaybackEngine
         }
     }
 
+    /// <summary>
+    /// Hot swap: switches to <paramref name="items"/> while playing. Items before <paramref name="fromIndex"/>
+    /// must be unchanged. Returns <c>false</c> if the item at <paramref name="fromIndex"/> has already started.
+    /// </summary>
+    public bool ReplaceUpcoming(IReadOnlyList<ScheduleItem> items, int fromIndex)
+    {
+        lock (_lock)
+        {
+            if (IsRunning && CurrentIndex >= fromIndex)
+                return false;
+            Items = items;
+            return true;
+        }
+    }
+
     /// <summary>Stops playback. Waits until the running schedule has ended.</summary>
     public void Stop()
     {
@@ -90,11 +105,17 @@ public sealed class PlaybackEngine
     {
         try
         {
-            for (var i = 0; i < Items.Count; i++)
+            for (var i = 0; ; i++)
             {
                 token.ThrowIfCancellationRequested();
-                var item = Items[i];
-                CurrentIndex = i;
+                ScheduleItem item;
+                // Under the lock so ReplaceUpcoming cannot swap the item that is about to start.
+                lock (_lock)
+                {
+                    if (i >= Items.Count) break;
+                    item = Items[i];
+                    CurrentIndex = i;
+                }
                 ItemStarted?.Invoke(this, (i, item));
 
                 if (item.Kind == ScheduleItemKind.Song && item.Song is not null)
