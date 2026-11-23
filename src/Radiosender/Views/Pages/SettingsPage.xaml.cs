@@ -9,10 +9,16 @@ namespace Radiosender.Views.Pages;
 /// <summary>Edits <see cref="AppSettings"/>. Nothing changes until Save.</summary>
 public partial class SettingsPage : Page
 {
-    public SettingsPage() => InitializeComponent();
+    private readonly SettingsStore _store;
+
+    public SettingsPage(SettingsStore store)
+    {
+        _store = store;
+        InitializeComponent();
+    }
 
     // Loaded fires on every navigation to the page, so unsaved edits from an earlier visit are dropped.
-    private void OnLoaded(object sender, RoutedEventArgs e) => Show(App.Settings);
+    private void OnLoaded(object sender, RoutedEventArgs e) => Show(_store.Current);
 
     private void Show(AppSettings settings)
     {
@@ -54,7 +60,7 @@ public partial class SettingsPage : Page
 
         try
         {
-            App.SaveSettings(settings);
+            _store.Save(settings);
             ShowMessage(InfoBarSeverity.Success, "Gespeichert", "Minuten pro Stunde gelten für den nächsten Plan.");
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

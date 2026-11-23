@@ -9,9 +9,13 @@ namespace Radiosender.Views.Pages;
 
 public partial class LibraryPage : Page
 {
-    private readonly LibraryController _controller = new(App.Songs);
+    private readonly LibraryController _controller;
 
-    public LibraryPage() => InitializeComponent();
+    public LibraryPage(LibraryController controller)
+    {
+        _controller = controller;
+        InitializeComponent();
+    }
 
     private Song? Selected => SongList.SelectedItem as Song;
 

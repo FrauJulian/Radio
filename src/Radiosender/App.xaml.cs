@@ -1,45 +1,72 @@
 ﻿using System.Windows;
+using Microsoft.Extensions.DependencyInjection;
 using Radiosender.Controllers;
 using Radiosender.Services;
+using Radiosender.Views;
+using Radiosender.Views.Pages;
 
 namespace Radiosender;
 
+/// <summary>Composition root: wires every service, controller and page once, at startup.</summary>
 public partial class App : Application
 {
-    public static SongRepository Songs { get; private set; } = null!;
+    private ServiceProvider? _services;
 
-    /// <summary>App-wide, so a running broadcast keeps going while the user switches pages.</summary>
-    public static ScheduleController Schedule { get; private set; } = null!;
-
-    public static AppSettings Settings { get; private set; } = new();
-
-    private static readonly ScheduleGenerator Generator = new();
-
-    /// <summary>Stores the settings and applies them: alerts at once, minutes per hour from the next plan on.</summary>
-    /// <exception cref="System.IO.IOException">The settings file cannot be written.</exception>
-    /// <exception cref="UnauthorizedAccessException">The settings file cannot be written.</exception>
-    public static void SaveSettings(AppSettings settings)
+    private static ServiceProvider BuildServices()
     {
-        settings.Save(AppSettings.DefaultPath);
-        Settings = settings;
-        Generator.Options = settings.ToScheduleOptions();
+        var services = new ServiceCollection();
+
+        // One instance each for the whole app. The schedule controller in particular must be shared,
+        // so a running broadcast keeps going while the user switches pages.
+        services.AddSingleton(_ => new SongRepository(SongRepository.DefaultDatabasePath));
+        services.AddSingleton(_ => new ScheduleGenerator());
+        services.AddSingleton(provider => new SettingsStore(provider.GetRequiredService<ScheduleGenerator>(), AppSettings.DefaultPath));
+        services.AddSingleton(_ => new PlaybackEngine());
+        services.AddSingleton(provider => new ScheduleController(
+            provider.GetRequiredService<SongRepository>(),
+            provider.GetRequiredService<ScheduleGenerator>(),
+            provider.GetRequiredService<PlaybackEngine>(),
+            () => DateTime.Now));
+        // One HttpClient for all providers and downloads.
+        services.AddSingleton(_ =>
+        {
+            var http = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(20) };
+            http.DefaultRequestHeaders.UserAgent.ParseAdd("Radiosender/1.0");
+            return http;
+        });
+        // Music providers: add a line here for each new IMusicProvider; the import page lists them all.
+        services.AddSingleton<IMusicProvider, OpenverseProvider>();
+        services.AddSingleton(provider => new TrackDownloader(provider.GetRequiredService<System.Net.Http.HttpClient>(), TrackDownloader.DefaultMusicFolder));
+        services.AddSingleton<OnlineImportController>();
+        services.AddSingleton(provider => new SongImportService(provider.GetRequiredService<SongRepository>(), SongImportService.DefaultMusicDirectory));
+        services.AddSingleton<UploadController>();
+        services.AddSingleton<LibraryController>();
+
+        // Pages are created anew on every navigation, as before; they hold only view state.
+        services.AddSingleton<MainWindow>();
+        services.AddTransient<SchedulePage>();
+        services.AddTransient<LibraryPage>();
+        services.AddTransient<ImportPage>();
+        services.AddTransient<SettingsPage>();
+
+        return services.BuildServiceProvider();
     }
 
     protected override void OnStartup(StartupEventArgs e)
     {
-        Settings = AppSettings.Load(AppSettings.DefaultPath);
-        Generator.Options = Settings.ToScheduleOptions();
-        // Creates the database file and table on first start.
-        Songs = new SongRepository(SongRepository.DefaultDatabasePath);
-        Schedule = new ScheduleController(Songs, Generator, new PlaybackEngine(), () => DateTime.Now);
+        base.OnStartup(e);
+        _services = BuildServices();
+        // Loads the settings and gives the generator its minutes per hour before the first plan.
+        _services.GetRequiredService<SettingsStore>();
         // Follow the Windows setting: light, dark or a high-contrast theme.
         Wpf.Ui.Appearance.ApplicationThemeManager.ApplySystemTheme();
-        base.OnStartup(e);
+        _services.GetRequiredService<MainWindow>().Show();
     }
 
     protected override void OnExit(ExitEventArgs e)
     {
-        Schedule.Stop();
+        _services?.GetRequiredService<ScheduleController>().Stop();
+        _services?.Dispose();
         base.OnExit(e);
     }
 }

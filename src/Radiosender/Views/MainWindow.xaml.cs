@@ -1,7 +1,9 @@
 using System.Windows.Threading;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
+using Radiosender.Controllers;
 using Radiosender.Models;
+using Radiosender.Services;
 using Radiosender.Views.Pages;
 using Wpf.Ui.Controls;
 
@@ -10,11 +12,17 @@ namespace Radiosender.Views;
 public partial class MainWindow : FluentWindow
 {
     private readonly DispatcherTimer _reminderTimer = new() { Interval = TimeSpan.FromSeconds(1) };
+    private readonly ScheduleController _schedule;
+    private readonly SettingsStore _settings;
     private DateTime _remindedFor;
 
-    public MainWindow()
+    public MainWindow(IServiceProvider services, ScheduleController schedule, SettingsStore settings)
     {
+        _schedule = schedule;
+        _settings = settings;
         InitializeComponent();
+        // The navigation view asks the container for each page, so pages get their controllers injected.
+        RootNavigation.SetServiceProvider(services);
         // Re-themes the app when the user switches the Windows theme while it runs.
         Wpf.Ui.Appearance.SystemThemeWatcher.Watch(this);
         Loaded += (_, _) => RootNavigation.Navigate(typeof(SchedulePage));
@@ -25,10 +33,10 @@ public partial class MainWindow : FluentWindow
     // Shortly before news or moderator talk goes on air, the person at the microphone gets a heads-up.
     private void RemindSpeaker()
     {
-        var settings = App.Settings;
+        var settings = _settings.Current;
         TimeSpan? newsLead = settings.NewsAlert ? TimeSpan.FromSeconds(settings.NewsAlertSeconds) : null;
         TimeSpan? moderatorLead = settings.ModeratorAlert ? TimeSpan.FromSeconds(settings.ModeratorAlertSeconds) : null;
-        if (App.Schedule.UpcomingSpeech(newsLead, moderatorLead) is not { } item || item.Start == _remindedFor)
+        if (_schedule.UpcomingSpeech(newsLead, moderatorLead) is not { } item || item.Start == _remindedFor)
             return;
         _remindedFor = item.Start; // once per item
         var isNews = item.Kind == ScheduleItemKind.News;

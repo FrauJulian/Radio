@@ -11,7 +11,7 @@ namespace Radiosender.Views.Pages;
 
 public partial class SchedulePage : Page
 {
-    private readonly ScheduleController _controller = App.Schedule;
+    private readonly ScheduleController _controller;
     private readonly DispatcherTimer _progressTimer = new() { Interval = TimeSpan.FromMilliseconds(250) };
     private bool _loading;
     private int _scrolledTo = -1;
@@ -29,8 +29,9 @@ public partial class SchedulePage : Page
     // Optimistic state: what the user just asked for, shown before the engine has caught up.
     private bool? _expectPlaying;
 
-    public SchedulePage()
+    public SchedulePage(ScheduleController controller)
     {
+        _controller = controller;
         InitializeComponent();
         Timeline.ItemsSource = _rows;
         // Also refreshes the buttons: Finished can arrive just before the engine reports it stopped.

@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.15" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.15" />
     <PackageReference Include="NAudio" Version="3.3.0" />
     <PackageReference Include="TagLibSharp" Version="2.3.0" />
     <PackageReference Include="WPF-UI" Version="4.3.0" />

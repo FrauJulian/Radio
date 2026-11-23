@@ -5,7 +5,7 @@ namespace Radiosender.Controllers;
 
 /// <summary>
 /// Creates the broadcast plan and drives its playback. One instance lives for the whole app
-/// (<see cref="App.Schedule"/>), so the plan survives page navigation.
+/// (registered as a singleton in <see cref="App"/>), so the plan survives page navigation.
 /// </summary>
 /// <remarks>Events come from the playback engine's thread pool; views marshal with <c>Dispatcher.BeginInvoke</c>.</remarks>
 public class ScheduleController
