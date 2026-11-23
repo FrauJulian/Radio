@@ -28,7 +28,7 @@ The interface is in German. This section names the controls as they appear on sc
 
 1. **Import**: one page for both ways of adding music. Every result, added or failed, is listed under "Importiert" as soon as there is one, with a link to the library.
    - **Vom Computer**: drop MP3 or WAV files on the page or click **Dateien auswählen...**; several files at once are fine. The app copies each file into the music folder, reads title and artist from the file tags and measures the duration. A file that fails is reported and the others still get imported.
-   - **Openverse**: search the [Openverse](https://openverse.org) audio catalog, preview a result and import it with **In Bibliothek importieren** or a double-click. Select several results with Ctrl or Shift to import them in one go; they are downloaded one after the other. The app downloads the file and stores its license and attribution with the song. Results that are already in the library or have no duration cannot be imported; the tooltip of the disabled button says why.
+   - **Online**: choose Openverse or the Internet Archive in the list next to the search box. Search the catalog, preview a result and import it with **In Bibliothek importieren** or a double-click. Select several results with Ctrl or Shift to import them in one go; they are downloaded one after the other. The app downloads the file and stores its license and attribution with the song. Results that are already in the library or have no duration cannot be imported; the tooltip of the disabled button says why.
 2. **Bibliothek**: lists and searches all songs. Edit title, artist, license and attribution, or delete a song.
 3. **Sendeplan** (the start page):
    1. Choose the start (one of the next 12 full hours) and the number of hours (1 to 24), then click **Plan erstellen**.
@@ -63,23 +63,34 @@ The app follows the MVC pattern and uses [WPF UI](https://github.com/lepoco/wpfu
 
 | Layer | Folder | Content |
 | --- | --- | --- |
-| Model | `src/Radiosender/Models` | `Song`, `ScheduleItem`, `OpenverseTrack` |
+| Model | `src/Radiosender/Models` | `Song`, `ScheduleItem`, `MusicTrack`, `OpenverseTrack` |
 | View | `src/Radiosender/Views` | `MainWindow` with navigation, one page per feature, `SongEditWindow` |
-| Controller | `src/Radiosender/Controllers` | `LibraryController`, `UploadController`, `OpenverseController`, `ScheduleController` |
+| Controller | `src/Radiosender/Controllers` | `LibraryController`, `UploadController`, `OnlineImportController`, `ScheduleController` |
 | Services | `src/Radiosender/Services` | database, audio, schedule logic and API access used by the controllers |
 
-Views only handle input and display. They call a controller, and the controller works with the models and services. `App` creates the shared `SongRepository` and one `ScheduleController` at startup. A running broadcast therefore keeps playing when the user switches pages.
+Views only handle input and display. They call a controller, and the controller works with the models and services. `App` is the composition root: it registers every service, controller and page in a `Microsoft.Extensions.DependencyInjection` container, and the navigation view asks that container for each page, so pages get their controllers through the constructor. The `SongRepository` and the `ScheduleController` are singletons. A running broadcast therefore keeps playing when the user switches pages.
 
 Main services:
 
 - `SongRepository`: CRUD for songs in SQLite through Entity Framework Core, without SQL in the code
 - `SongImportService`: copies an uploaded file into the music folder, reads its tags with TagLibSharp and its duration with NAudio
-- `OpenverseClient`: anonymous search and download through the Openverse API
+- `IMusicProvider`: an online catalog that can be searched. `OpenverseProvider` uses the anonymous Openverse API and `InternetArchiveProvider` the Internet Archive search, limited to Creative Commons licensed MP3 files.
+- `TrackDownloader`: downloads a search result into the music folder, the same way for every provider
 - `MusicPlayer`: the audio player as a singleton (`MusicPlayer.Instance`, private constructor). It plays files with NAudio.
 - `ScheduleGenerator`: builds the plan and handles song requests
 - `PlaybackEngine`: runs the plan item by item on a background thread and plays songs through `MusicPlayer`
 
 Tests are in `tests/Radiosender.Tests` (xUnit). They cover the repository, import, Openverse parsing, the generator rules, the playback engine and the schedule controller.
+
+## Adding a music provider
+
+Online sources sit behind `IMusicProvider`, so a new one needs no change to the import, the download or the page:
+
+1. Write a class that implements `IMusicProvider`: a `Name` for the interface and `SearchAsync`, which returns `MusicTrack` items (title, creator, https link to the audio file, license, attribution, duration).
+2. Give every track an `Id` that no other provider uses, for example prefixed with the provider name. Openverse ids are stored as they come.
+3. Register the class in `App.BuildServices` with `services.AddSingleton<IMusicProvider, YourProvider>()`.
+
+With one provider the import tab carries its name. With several, the tab is called "Online" and a list next to the search box chooses the provider.
 
 ## Openverse attribution
 
@@ -100,7 +111,7 @@ For each downloaded track the app stores the license (for example `CC BY 4.0`) a
 | Music comes from a SQLite database | `SongRepository` with Entity Framework Core, `radiosender.db` | Done |
 | Library can be extended at any time: add, edit, delete | Library page and `SongEditWindow` | Done |
 | Add by simple upload | Import page, "Vom Computer" (MP3, WAV, several files, drag and drop) | Done |
-| Add through the Openverse API | Import page, "Openverse" | Done |
+| Add through the Openverse API | Import page, "Online", provider Openverse; the Internet Archive is a second provider | Done |
 | Music player is a singleton class | `MusicPlayer.Instance` | Done |
 | Hot swap: a requested song replaces an item during the planned run, everything after adapts | Song request on the Schedule page; `ScheduleGenerator.Replace`, `PlaybackEngine.ReplaceUpcoming` | Done |
 | News and ad blocks are shown | Timeline with type labels, now-playing card | Done |
@@ -114,6 +125,7 @@ For each downloaded track the app stores the license (for example `CC BY 4.0`) a
 - **Manual edits** shift every later item, so after moving, removing or resizing an item the news can leave :00 and :30 and the plan can end earlier or later.
 - **Late items**: if a song plays longer than its stored duration, the following items start late by the same amount. Nothing is cut to catch up; the delay only disappears when a later item ends early.
 - **Skipped songs**: a song that cannot be played (missing file, unsupported format) is skipped with a warning, and the station stays silent until the next planned item.
+- **Internet Archive**: one search asks for up to 8 items and then for the file list of each, and shows at most 5 MP3 files per item. Results can include long recordings; the 50 MB download limit applies.
 - **Very old libraries**: a `radiosender.db` from before the Openverse import has no `OpenverseId` column and is not upgraded. Delete the file and import the music again.
 - **Deleting a song** removes it from the library but keeps its file in the `Music` folder.
 - **Placeholders** have no audio.
