@@ -31,22 +31,30 @@ public sealed class OpenverseTests : IDisposable
             Directory.Delete(_directory, recursive: true);
     }
 
-    private OpenverseClient NewClient(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> handle, TimeSpan? timeout = null) =>
-        new(new HttpClient(new FakeHandler(handle)) { Timeout = timeout ?? TimeSpan.FromSeconds(10) }, MusicFolder);
+    private static HttpClient Http(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> handle, TimeSpan? timeout = null) =>
+        new(new FakeHandler(handle)) { Timeout = timeout ?? TimeSpan.FromSeconds(10) };
+
+    private static OpenverseProvider NewProvider(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> handle, TimeSpan? timeout = null) =>
+        new(Http(handle, timeout));
+
+    private TrackDownloader NewClient(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> handle) =>
+        new(Http(handle), MusicFolder);
+
+    private static OnlineImportController NewController(TrackDownloader downloader, SongRepository songs) =>
+        new([], downloader, songs);
 
     private static Task<HttpResponseMessage> Respond(HttpStatusCode status, HttpContent? content = null) =>
         Task.FromResult(new HttpResponseMessage(status) { Content = content ?? new ByteArrayContent([]) });
 
-    private static OpenverseTrack Track(string url = "https://cdn.example.org/a.mp3") => new()
+    private static MusicTrack Track(string url = "https://cdn.example.org/a.mp3") => new()
     {
         Id = "a",
         Title = "Piano Melody",
         Creator = "benpm",
         Url = url,
         FileType = "mp3",
-        License = "by",
-        LicenseVersion = "4.0",
-        DurationMs = 10193,
+        License = "CC BY 4.0",
+        Duration = TimeSpan.FromMilliseconds(10193),
         Attribution = "\"Piano Melody\" by benpm is licensed under CC BY 4.0.",
     };
 
@@ -63,10 +71,30 @@ public sealed class OpenverseTests : IDisposable
     }
 
     [Fact]
+    public void Track_MapsToTheNeutralShape()
+    {
+        var track = new OpenverseTrack { Id = "a", Title = "T", License = "by", LicenseVersion = "4.0", FileType = "MP32", DurationMs = 2000 }.ToMusicTrack();
+
+        Assert.Equal("a", track.Id);
+        Assert.Equal("CC BY 4.0", track.License);
+        Assert.Equal("mp3", track.FileType);
+        Assert.Equal(TimeSpan.FromSeconds(2), track.Duration);
+    }
+
+    [Fact]
+    public void Controller_ListsTheRegisteredProviders()
+    {
+        var provider = NewProvider((_, _) => Respond(HttpStatusCode.OK));
+        var controller = new OnlineImportController([provider], NewClient((_, _) => Respond(HttpStatusCode.OK)), new SongRepository(Path.Combine(_directory, "test.db")));
+
+        Assert.Equal("Openverse", Assert.Single(controller.Providers).Name);
+    }
+
+    [Fact]
     public async Task Search_ParsesResults()
     {
         Uri? requested = null;
-        var client = NewClient((request, _) =>
+        var client = NewProvider((request, _) =>
         {
             requested = request.RequestUri;
             return Respond(HttpStatusCode.OK, new StringContent(SearchJson, Encoding.UTF8, "application/json"));
@@ -83,19 +111,19 @@ public sealed class OpenverseTests : IDisposable
         Assert.Equal("https://cdn.example.org/a.mp3", first.Url);
         Assert.Equal("mp3", first.FileType);
         Assert.Equal(TimeSpan.FromMilliseconds(10193), first.Duration);
-        Assert.Equal("CC BY 4.0", first.LicenseName);
+        Assert.Equal("CC BY 4.0", first.License);
         Assert.StartsWith("\"Piano Melody\" by benpm", first.Attribution);
         Assert.True(first.CanImport);
         Assert.False(tracks[1].CanImport);
-        Assert.Equal("CC0 1.0", tracks[1].LicenseName);
+        Assert.Equal("CC0 1.0", tracks[1].License);
     }
 
     [Fact]
     public async Task Search_RateLimited_ThrowsReadableError()
     {
-        var client = NewClient((_, _) => Respond(HttpStatusCode.TooManyRequests));
+        var client = NewProvider((_, _) => Respond(HttpStatusCode.TooManyRequests));
 
-        var error = await Assert.ThrowsAsync<OpenverseException>(() => client.SearchAsync("x"));
+        var error = await Assert.ThrowsAsync<MusicProviderException>(() => client.SearchAsync("x"));
 
         Assert.Contains("Limit erreicht", error.Message);
     }
@@ -103,13 +131,13 @@ public sealed class OpenverseTests : IDisposable
     [Fact]
     public async Task Search_Timeout_ThrowsReadableError()
     {
-        var client = NewClient(async (_, token) =>
+        var client = NewProvider(async (_, token) =>
         {
             await Task.Delay(Timeout.Infinite, token);
             throw new InvalidOperationException("unreachable");
         }, TimeSpan.FromMilliseconds(100));
 
-        var error = await Assert.ThrowsAsync<OpenverseException>(() => client.SearchAsync("x"));
+        var error = await Assert.ThrowsAsync<MusicProviderException>(() => client.SearchAsync("x"));
 
         Assert.Contains("Zeitüberschreitung", error.Message);
     }
@@ -119,19 +147,19 @@ public sealed class OpenverseTests : IDisposable
     {
         var client = NewClient((_, _) => Respond(HttpStatusCode.OK, new ByteArrayContent(Audio)));
         var songs = new SongRepository(Path.Combine(_directory, "test.db"));
-        var controller = new OpenverseController(client, songs);
+        var controller = NewController(client, songs);
 
         var song = await controller.ImportAsync(Track());
 
         var stored = songs.GetById(song.Id)!;
         Assert.Equal(Path.Combine(MusicFolder, "benpm - Piano Melody.mp3"), stored.FilePath);
         Assert.Equal(Audio, File.ReadAllBytes(stored.FilePath));
-        Assert.Equal(SongSource.Openverse, stored.Source);
+        Assert.Equal(SongSource.Online, stored.Source);
         Assert.Equal("CC BY 4.0", stored.License);
         Assert.Equal(Track().Attribution, stored.Attribution);
         Assert.Equal(TimeSpan.FromMilliseconds(10193), stored.Duration);
         Assert.Equal("benpm", stored.Artist);
-        Assert.Equal("a", stored.OpenverseId);
+        Assert.Equal("a", stored.ExternalId);
         Assert.Contains("a", controller.ImportedIds());
     }
 
@@ -154,7 +182,7 @@ public sealed class OpenverseTests : IDisposable
     {
         var client = NewClient((_, _) => Respond(HttpStatusCode.OK, new StreamContent(new FailingStream())));
 
-        await Assert.ThrowsAsync<OpenverseException>(() => client.DownloadAsync(Track()));
+        await Assert.ThrowsAsync<MusicProviderException>(() => client.DownloadAsync(Track()));
 
         Assert.Empty(MusicFiles());
     }
@@ -166,12 +194,12 @@ public sealed class OpenverseTests : IDisposable
         var tooLarge = NewClient((_, _) =>
         {
             var content = new ByteArrayContent(Audio);
-            content.Headers.ContentLength = OpenverseClient.MaxDownloadBytes + 1;
+            content.Headers.ContentLength = TrackDownloader.MaxDownloadBytes + 1;
             return Respond(HttpStatusCode.OK, content);
         });
 
-        await Assert.ThrowsAsync<OpenverseException>(() => notFound.DownloadAsync(Track()));
-        await Assert.ThrowsAsync<OpenverseException>(() => tooLarge.DownloadAsync(Track()));
+        await Assert.ThrowsAsync<MusicProviderException>(() => notFound.DownloadAsync(Track()));
+        await Assert.ThrowsAsync<MusicProviderException>(() => tooLarge.DownloadAsync(Track()));
 
         Assert.Empty(MusicFiles());
     }
@@ -182,7 +210,7 @@ public sealed class OpenverseTests : IDisposable
         var called = false;
         var client = NewClient((_, _) => { called = true; return Respond(HttpStatusCode.OK); });
 
-        await Assert.ThrowsAsync<OpenverseException>(() => client.DownloadAsync(Track("http://cdn.example.org/a.mp3")));
+        await Assert.ThrowsAsync<MusicProviderException>(() => client.DownloadAsync(Track("http://cdn.example.org/a.mp3")));
 
         Assert.False(called);
     }
@@ -192,9 +220,9 @@ public sealed class OpenverseTests : IDisposable
     {
         var client = NewClient((_, _) => Respond(HttpStatusCode.OK, new ByteArrayContent(Audio)));
         var songs = new SongRepository(Path.Combine(_directory, "test.db"));
-        var track = new OpenverseTrack { Title = "x", Url = "https://cdn.example.org/x.mp3", License = "by" };
+        var track = new MusicTrack { Title = "x", Url = "https://cdn.example.org/x.mp3", License = "CC BY 4.0" };
 
-        await Assert.ThrowsAsync<OpenverseException>(() => new OpenverseController(client, songs).ImportAsync(track));
+        await Assert.ThrowsAsync<MusicProviderException>(() => NewController(client, songs).ImportAsync(track));
 
         Assert.Empty(MusicFiles());
         Assert.Empty(songs.GetAll());
@@ -233,10 +261,10 @@ public sealed class OpenverseTests : IDisposable
         var downloads = 0;
         var client = NewClient((_, _) => { downloads++; return Respond(HttpStatusCode.OK, new ByteArrayContent(Audio)); });
         var songs = new SongRepository(Path.Combine(_directory, "test.db"));
-        var controller = new OpenverseController(client, songs);
+        var controller = NewController(client, songs);
         await controller.ImportAsync(Track());
 
-        var error = await Assert.ThrowsAsync<OpenverseException>(() => controller.ImportAsync(Track()));
+        var error = await Assert.ThrowsAsync<MusicProviderException>(() => controller.ImportAsync(Track()));
 
         Assert.Contains("bereits in der Bibliothek", error.Message);
         Assert.Equal(1, downloads);

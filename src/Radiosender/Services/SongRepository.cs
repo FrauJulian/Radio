@@ -28,11 +28,11 @@ public class SongRepository
         context.Database.EnsureCreated();
     }
 
-    /// <summary>Ids of all Openverse results that are already in the library.</summary>
-    public IReadOnlySet<string> GetOpenverseIds()
+    /// <summary>Ids of all provider results that are already in the library.</summary>
+    public IReadOnlySet<string> GetExternalIds()
     {
         using var context = Open();
-        return context.Songs.Where(s => s.OpenverseId != null).Select(s => s.OpenverseId!).ToHashSet();
+        return context.Songs.Where(s => s.ExternalId != null).Select(s => s.ExternalId!).ToHashSet();
     }
 
     public IReadOnlyList<Song> GetAll()
@@ -49,7 +49,7 @@ public class SongRepository
 
     /// <summary>Inserts the song and sets its <see cref="Song.Id"/>.</summary>
     /// <exception cref="ArgumentException">The song has no duration.</exception>
-    /// <exception cref="DbUpdateException">The database rejected the song, e.g. a second song with the same Openverse id.</exception>
+    /// <exception cref="DbUpdateException">The database rejected the song, e.g. a second song with the same external id.</exception>
     public void Add(Song song)
     {
         RequireDuration(song);
@@ -58,7 +58,7 @@ public class SongRepository
         context.SaveChanges();
     }
 
-    /// <summary>Stores everything except the Openverse id, which never changes after the import.</summary>
+    /// <summary>Stores everything except the external id, which never changes after the import.</summary>
     /// <returns><c>false</c> if no song with this id exists.</returns>
     /// <exception cref="ArgumentException">The song has no duration.</exception>
     public bool Update(Song song)
@@ -104,9 +104,11 @@ public class SongRepository
             song.Property(s => s.Duration)
                 .HasColumnName("DurationMs")
                 .HasConversion(duration => (long)duration.TotalMilliseconds, milliseconds => TimeSpan.FromMilliseconds(milliseconds));
-            // One song per Openverse result, also if two imports of the same track race.
+            // The column keeps the name it got when Openverse was the only provider.
+            song.Property(s => s.ExternalId).HasColumnName("OpenverseId");
+            // One song per provider result, also if two imports of the same track race.
             // SQLite allows any number of rows without an id in a unique index.
-            song.HasIndex(s => s.OpenverseId).IsUnique();
+            song.HasIndex(s => s.ExternalId).IsUnique();
         }
     }
 }

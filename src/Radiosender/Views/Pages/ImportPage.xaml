@@ -60,8 +60,8 @@
                 </Grid>
             </TabItem>
 
-            <!-- Openverse -->
-            <TabItem Header="Openverse">
+            <!-- Online providers; the header is the provider name when there is only one -->
+            <TabItem x:Name="OnlineTab" Header="Online">
                 <Grid Margin="0,12,0,0">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -72,15 +72,24 @@
 
                     <Grid Grid.Row="0">
                         <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
+                        <!-- Only shown when more than one provider is registered -->
+                        <ComboBox x:Name="ProviderBox"
+                                  MinWidth="140"
+                                  Margin="0,0,8,0"
+                                  AutomationProperties.Name="Musikquelle"
+                                  DisplayMemberPath="Name"
+                                  Visibility="Collapsed" />
                         <ui:TextBox x:Name="QueryBox"
+                                    Grid.Column="1"
                                     PlaceholderText="Freie Musik suchen, zum Beispiel &quot;jazz piano&quot;"
                                     AutomationProperties.Name="Suchbegriff"
                                     KeyDown="OnQueryKeyDown" />
                         <ui:Button x:Name="SearchButton"
-                                   Grid.Column="1"
+                                   Grid.Column="2"
                                    Margin="8,0,0,0"
                                    Appearance="Primary"
                                    Content="Suchen"
@@ -102,7 +111,7 @@
                                 <ui:GridViewColumn Width="300" Header="Titel" DisplayMemberBinding="{Binding Track.Title}" />
                                 <ui:GridViewColumn Width="180" Header="Urheber" DisplayMemberBinding="{Binding Track.Creator}" />
                                 <ui:GridViewColumn Width="80" Header="Dauer" DisplayMemberBinding="{Binding Track.DurationText}" />
-                                <ui:GridViewColumn Width="130" Header="Lizenz" DisplayMemberBinding="{Binding Track.LicenseName}" />
+                                <ui:GridViewColumn Width="130" Header="Lizenz" DisplayMemberBinding="{Binding Track.License}" />
                             </ui:GridView>
                         </ui:ListView.View>
                     </ui:ListView>

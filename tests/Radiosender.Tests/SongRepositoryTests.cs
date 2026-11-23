@@ -22,7 +22,7 @@ public sealed class SongRepositoryTests : IDisposable
         Artist = "Artist",
         Duration = TimeSpan.FromSeconds(185.5),
         FilePath = @"C:\music\song.mp3",
-        Source = SongSource.Openverse,
+        Source = SongSource.Online,
         License = "CC BY 4.0",
         Attribution = null,
     };
@@ -128,40 +128,40 @@ public sealed class SongRepositoryTests : IDisposable
     }
 
     [Fact]
-    public void OpenverseId_IsStoredAndListed()
+    public void ExternalId_IsStoredAndListed()
     {
         var repository = new SongRepository(DatabasePath);
         var song = NewSong();
-        song.OpenverseId = "ov-1";
+        song.ExternalId = "ov-1";
         repository.Add(song);
         repository.Add(NewSong("Uploaded"));
 
-        Assert.Equal("ov-1", repository.GetById(song.Id)!.OpenverseId);
-        Assert.Equal(["ov-1"], repository.GetOpenverseIds());
+        Assert.Equal("ov-1", repository.GetById(song.Id)!.ExternalId);
+        Assert.Equal(["ov-1"], repository.GetExternalIds());
     }
 
     [Fact]
-    public void OpenverseId_CannotBeStoredTwice()
+    public void ExternalId_CannotBeStoredTwice()
     {
         var repository = new SongRepository(DatabasePath);
-        repository.Add(new Song { Title = "A", Artist = "", Duration = TimeSpan.FromSeconds(1), FilePath = "a", OpenverseId = "ov-1" });
+        repository.Add(new Song { Title = "A", Artist = "", Duration = TimeSpan.FromSeconds(1), FilePath = "a", ExternalId = "ov-1" });
 
         Assert.Throws<DbUpdateException>(() =>
-            repository.Add(new Song { Title = "B", Artist = "", Duration = TimeSpan.FromSeconds(1), FilePath = "b", OpenverseId = "ov-1" }));
+            repository.Add(new Song { Title = "B", Artist = "", Duration = TimeSpan.FromSeconds(1), FilePath = "b", ExternalId = "ov-1" }));
     }
 
     [Fact]
-    public void Update_RejectsZeroDurationAndKeepsTheOpenverseId()
+    public void Update_RejectsZeroDurationAndKeepsTheExternalId()
     {
         var repository = new SongRepository(DatabasePath);
         var song = NewSong();
-        song.OpenverseId = "ov-1";
+        song.ExternalId = "ov-1";
         repository.Add(song);
 
         song.Title = "Renamed";
-        song.OpenverseId = "changed";
+        song.ExternalId = "changed";
         Assert.True(repository.Update(song));
-        Assert.Equal("ov-1", repository.GetById(song.Id)!.OpenverseId);
+        Assert.Equal("ov-1", repository.GetById(song.Id)!.ExternalId);
 
         song.Duration = TimeSpan.Zero;
         Assert.Throws<ArgumentException>(() => repository.Update(song));
@@ -192,8 +192,8 @@ public sealed class SongRepositoryTests : IDisposable
         var old = Assert.Single(repository.GetAll());
         Assert.Equal("Old", old.Title);
         Assert.Equal(TimeSpan.FromSeconds(185.5), old.Duration);
-        Assert.Equal(SongSource.Openverse, old.Source);
-        Assert.Equal("ov-old", old.OpenverseId);
+        Assert.Equal(SongSource.Online, old.Source);
+        Assert.Equal("ov-old", old.ExternalId);
 
         var added = NewSong("New");
         repository.Add(added);

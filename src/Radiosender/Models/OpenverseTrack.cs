@@ -23,10 +23,6 @@ public class OpenverseTrack
     [JsonIgnore]
     public TimeSpan? Duration => DurationMs > 0 ? TimeSpan.FromMilliseconds(DurationMs.Value) : null;
 
-    /// <summary>Songs need a duration for scheduling, so results without one cannot be imported.</summary>
-    public bool CanImport => Duration is not null;
-
-    public string DurationText => Duration?.ToString(@"m\:ss") ?? "unbekannt";
 
     /// <summary>Readable license name, for example "CC BY 4.0", "CC0 1.0" or "Public Domain Mark 1.0".</summary>
     public string LicenseName => License.ToLowerInvariant() switch
@@ -34,5 +30,19 @@ public class OpenverseTrack
         "cc0" => $"CC0 {LicenseVersion}".Trim(),
         "pdm" => $"Public Domain Mark {LicenseVersion}".Trim(),
         _ => $"CC {License.ToUpperInvariant()} {LicenseVersion}".Trim(),
+    };
+
+    /// <summary>The result in the provider-neutral shape. Openverse ids are stored as they come.</summary>
+    public MusicTrack ToMusicTrack() => new()
+    {
+        Id = Id,
+        Title = Title,
+        Creator = Creator,
+        Url = Url,
+        // Openverse reports some MP3 files as "mp32".
+        FileType = FileType?.ToLowerInvariant() is "mp32" ? "mp3" : FileType,
+        License = LicenseName,
+        Attribution = Attribution,
+        Duration = Duration,
     };
 }

@@ -12,15 +12,11 @@ using Wpf.Ui.Controls;
 
 namespace Radiosender.Views.Pages;
 
-/// <summary>Adds music to the library from local files or from Openverse; both list their results in one place.</summary>
+/// <summary>Adds music to the library from local files or from an online provider; both list their results in one place.</summary>
 public partial class ImportPage : Page
 {
-    // One Openverse controller (and HttpClient) for the app lifetime; created on first use, after App.Songs exists.
-    private static OpenverseController? _openverse;
-    private static OpenverseController Openverse => _openverse ??= new(OpenverseClient.CreateDefault(), App.Songs);
-
-    private readonly UploadController _upload =
-        new(new SongImportService(App.Songs, SongImportService.DefaultMusicDirectory));
+    private readonly OnlineImportController _online;
+    private readonly UploadController _upload;
 
     private readonly ObservableCollection<SessionRow> _session = [];
     // Preview has its own output, so it never interrupts a running broadcast.
@@ -31,9 +27,19 @@ public partial class ImportPage : Page
     private bool _busy;
     private bool _previewing;
 
-    public ImportPage()
+    public ImportPage(OnlineImportController online, UploadController upload)
     {
+        _online = online;
+        _upload = upload;
         InitializeComponent();
+        // One provider needs no choice: the tab carries its name. Several get a list next to the search box.
+        var providers = _online.Providers;
+        ProviderBox.ItemsSource = providers;
+        ProviderBox.SelectedIndex = providers.Count > 0 ? 0 : -1;
+        ProviderBox.Visibility = providers.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
+        OnlineTab.Visibility = providers.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        if (providers.Count == 1)
+            OnlineTab.Header = providers[0].Name;
         Session.ItemsSource = _session;
         _session.CollectionChanged += (_, _) =>
         {
@@ -98,7 +104,7 @@ public partial class ImportPage : Page
         }
     }
 
-    // ---- Openverse ----
+    // ---- Online providers ----
 
     private ResultRow? Selected => Results.SelectedItem as ResultRow;
 
@@ -111,21 +117,21 @@ public partial class ImportPage : Page
     private async void OnSearch(object sender, RoutedEventArgs e)
     {
         var query = QueryBox.Text.Trim();
-        if (query.Length == 0 || _busy)
+        if (query.Length == 0 || _busy || ProviderBox.SelectedItem is not IMusicProvider provider)
             return;
 
-        SetBusy($"Suche auf Openverse nach \"{query}\"...");
+        SetBusy($"Suche auf {provider.Name} nach \"{query}\"...");
         Message.IsOpen = false;
         try
         {
-            var tracks = await Openverse.SearchAsync(query);
-            var imported = Openverse.ImportedIds();
+            var tracks = await provider.SearchAsync(query);
+            var imported = _online.ImportedIds();
             Results.ItemsSource = tracks.Select(t => ResultRow.For(t, imported)).ToList();
             GridColumns.Fit(Results);
             if (tracks.Count == 0)
-                Show(InfoBarSeverity.Informational, "Keine Ergebnisse", $"Openverse hat nichts zu \"{query}\" gefunden.");
+                Show(InfoBarSeverity.Informational, "Keine Ergebnisse", $"{provider.Name} hat nichts zu \"{query}\" gefunden.");
         }
-        catch (OpenverseException ex)
+        catch (MusicProviderException ex)
         {
             Show(InfoBarSeverity.Error, "Suche fehlgeschlagen", ex.Message);
         }
@@ -208,7 +214,7 @@ public partial class ImportPage : Page
     // Everything selected that can still be imported.
     private List<ResultRow> Importable => Results.SelectedItems.OfType<ResultRow>().Where(r => r.CanImport).ToList();
 
-    // One after the other: Openverse limits anonymous requests, and each result shows up as soon as it is done.
+    // One after the other: providers limit anonymous requests, and each result shows up as soon as it is done.
     private async void OnImport(object sender, RoutedEventArgs e)
     {
         var rows = Importable;
@@ -228,14 +234,14 @@ public partial class ImportPage : Page
                     : $"Lade {i + 1} von {rows.Count} herunter: \"{row.Track.Title}\"...");
                 try
                 {
-                    var song = await Openverse.ImportAsync(row.Track);
+                    var song = await _online.ImportAsync(row.Track);
                     _session.Insert(0, SessionRow.Added(song, song.License ?? ""));
                     ReplaceRow(row, row with { Status = "In Bibliothek", CanImport = false });
                 }
-                catch (Exception ex) when (ex is OpenverseException or Microsoft.EntityFrameworkCore.DbUpdateException)
+                catch (Exception ex) when (ex is MusicProviderException or Microsoft.EntityFrameworkCore.DbUpdateException)
                 {
                     // The database error text is technical and English; the usual cause is a song that is already stored.
-                    var reason = ex is OpenverseException ? ex.Message : "Der Song konnte nicht in der Bibliothek gespeichert werden.";
+                    var reason = ex is MusicProviderException ? ex.Message : "Der Song konnte nicht in der Bibliothek gespeichert werden.";
                     _session.Insert(0, SessionRow.Failed(row.Track.Title, reason));
                     failed++;
                     lastError = reason;
@@ -296,9 +302,9 @@ public partial class ImportPage : Page
 
     private void OnUnloaded(object sender, RoutedEventArgs e) => OnStop(sender, e);
 
-    private sealed record ResultRow(OpenverseTrack Track, string Status, bool CanImport)
+    private sealed record ResultRow(MusicTrack Track, string Status, bool CanImport)
     {
-        public static ResultRow For(OpenverseTrack track, IReadOnlySet<string> imported) =>
+        public static ResultRow For(MusicTrack track, IReadOnlySet<string> imported) =>
             imported.Contains(track.Id) ? new(track, "In Bibliothek", false)
             : !track.CanImport ? new(track, "Keine Dauer", false)
             : new(track, "", true);
