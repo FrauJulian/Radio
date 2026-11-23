@@ -53,6 +53,254 @@ public sealed class ScheduleControllerTests : IDisposable
     }
 
     [Fact]
+    public void CreatePlan_StartsAtTheGivenHour()
+    {
+        AddSongs();
+
+        var plan = Create().CreatePlan(1, new DateTime(2026, 11, 23, 18, 0, 0));
+
+        Assert.Equal(new DateTime(2026, 11, 23, 18, 0, 0), plan[0].Start);
+        Assert.Equal(new DateTime(2026, 11, 23, 19, 0, 0), plan[^1].End);
+    }
+
+    [Fact]
+    public void CreatePlan_UnlimitedPlansTheLookahead()
+    {
+        AddSongs();
+        var controller = Create();
+
+        var plan = controller.CreatePlan(null);
+
+        Assert.True(controller.IsUnlimited);
+        Assert.Equal(new DateTime(2026, 11, 23, 20, 0, 0), plan[^1].End);
+    }
+
+    [Fact]
+    public async Task Unlimited_AppendsHoursWhilePlaying()
+    {
+        AddSongs();
+        var hold = new TaskCompletionSource();
+        var controller = Create((_, token) => hold.Task.WaitAsync(token));
+        controller.CreatePlan(null); // 15:00 to 20:00
+        var first = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        controller.ItemStarted += (_, _) => first.TrySetResult();
+
+        _now = new DateTime(2026, 11, 23, 16, 30, 0); // the news at 16:30 goes on air
+        controller.Start();
+        await first.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        var plan = controller.Plan;
+        Assert.Equal(new DateTime(2026, 11, 23, 22, 0, 0), plan[^1].End); // 5 h ahead of 16:30, in full hours
+        for (var i = 1; i < plan.Count; i++)
+            Assert.Equal(plan[i - 1].End, plan[i].Start);
+        Assert.Equal(ScheduleItemKind.News, controller.CurrentItem!.Kind);
+        controller.Stop();
+    }
+
+    [Fact]
+    public void StartNow_PlansFromThisMomentAndGoesOnAir()
+    {
+        AddSongs();
+        var hold = new TaskCompletionSource();
+        var controller = Create((_, token) => hold.Task.WaitAsync(token));
+
+        controller.StartNow(1);
+
+        Assert.True(controller.IsPlaying);
+        Assert.Equal(_now, controller.Plan[0].Start);
+        Assert.NotEqual(ScheduleItemKind.News, controller.Plan[0].Kind);
+        Assert.Equal(new DateTime(2026, 11, 23, 16, 0, 0), controller.Plan[^1].End);
+        controller.Stop();
+    }
+
+    private static void AssertContiguousFrom(IReadOnlyList<ScheduleItem> plan, DateTime start)
+    {
+        Assert.Equal(start, plan[0].Start);
+        for (var i = 1; i < plan.Count; i++)
+            Assert.Equal(plan[i - 1].End, plan[i].Start);
+    }
+
+    [Fact]
+    public void Move_SwapsItemsAndShiftsTheTimes()
+    {
+        AddSongs();
+        var controller = Create();
+        var before = controller.CreatePlan(1);
+
+        var plan = controller.Move(2, -2);
+
+        Assert.Equal(before[2].Song?.Id, plan[0].Song?.Id);
+        Assert.Equal(before[2].Kind, plan[0].Kind);
+        Assert.Equal(ScheduleItemKind.News, plan[1].Kind);
+        Assert.Equal(before.Count, plan.Count);
+        AssertContiguousFrom(plan, before[0].Start);
+        Assert.Equal(before[^1].End, plan[^1].End);
+        Assert.Same(plan, controller.Plan);
+    }
+
+    [Fact]
+    public void Move_PastTheEdgeThrows()
+    {
+        AddSongs();
+        var controller = Create();
+        controller.CreatePlan(1);
+
+        Assert.Throws<ScheduleException>(() => controller.Move(0, -1));
+    }
+
+    [Fact]
+    public void Remove_ClosesTheGap()
+    {
+        AddSongs();
+        var controller = Create();
+        var before = controller.CreatePlan(1);
+
+        var plan = controller.Remove(1);
+
+        Assert.Equal(before.Count - 1, plan.Count);
+        AssertContiguousFrom(plan, before[0].Start);
+        Assert.Equal(before[^1].End - before[1].Duration, plan[^1].End);
+    }
+
+    [Fact]
+    public void EditItem_SetsTitleAndLengthOfNews()
+    {
+        AddSongs();
+        var controller = Create();
+        var before = controller.CreatePlan(1);
+
+        var plan = controller.EditItem(0, " Evening news ", TimeSpan.FromMinutes(3));
+
+        Assert.Equal("Evening news", plan[0].Title);
+        Assert.Equal(TimeSpan.FromMinutes(3), plan[0].Duration);
+        AssertContiguousFrom(plan, before[0].Start);
+        Assert.Equal(before[^1].End - TimeSpan.FromMinutes(2), plan[^1].End);
+    }
+
+    [Fact]
+    public void EditItem_RejectsSongsAndAdLengths()
+    {
+        AddSongs();
+        var controller = Create();
+        var plan = controller.CreatePlan(1);
+        var song = plan.ToList().FindIndex(i => i.Kind == ScheduleItemKind.Song);
+        var ad = plan.ToList().FindIndex(i => i.Kind == ScheduleItemKind.Ad);
+
+        Assert.Throws<ScheduleException>(() => controller.EditItem(song, "x", plan[song].Duration));
+        Assert.Throws<ScheduleException>(() => controller.EditItem(ad, "x", plan[ad].Duration + TimeSpan.FromSeconds(1)));
+        Assert.Equal("Spot", controller.EditItem(ad, "Spot", plan[ad].Duration)[ad].Title);
+    }
+
+    [Fact]
+    public async Task Edits_WhilePlayingRejectTheItemOnAir()
+    {
+        AddSongs();
+        var hold = new TaskCompletionSource();
+        var controller = Create((_, token) => hold.Task.WaitAsync(token));
+        controller.CreatePlan(1);
+        var first = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        controller.ItemStarted += (_, _) => first.TrySetResult();
+        _now = controller.Plan[0].Start;
+        controller.Start();
+        await first.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Throws<ScheduleException>(() => controller.Remove(0));
+        Assert.Throws<ScheduleException>(() => controller.Move(1, -1));
+        var count = controller.Plan.Count;
+        Assert.Equal(count - 1, controller.Remove(1).Count);
+        controller.Stop();
+    }
+
+    private async Task<(ScheduleController Controller, SemaphoreSlim Started)> OnAirWithTheFirstNewsAsync()
+    {
+        AddSongs();
+        var hold = new TaskCompletionSource();
+        var controller = Create((_, token) => hold.Task.WaitAsync(token));
+        controller.CreatePlan(1);
+        var started = new SemaphoreSlim(0);
+        controller.ItemStarted += (_, _) => started.Release();
+        _now = controller.Plan[0].Start;
+        controller.Start();
+        Assert.True(await started.WaitAsync(TimeSpan.FromSeconds(5)));
+        return (controller, started);
+    }
+
+    [Fact]
+    public async Task EndCurrentNow_EndsTheItemOnAirAndStartsTheNext()
+    {
+        var (controller, started) = await OnAirWithTheFirstNewsAsync();
+        _now = _now.AddMinutes(2);
+
+        var plan = controller.EndCurrentNow();
+
+        Assert.Equal(TimeSpan.FromMinutes(2), plan[0].Duration);
+        AssertContiguousFrom(plan, plan[0].Start);
+        Assert.Equal(_now, plan[1].Start);
+        Assert.True(await started.WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.Equal(1, controller.CurrentIndex);
+        controller.Stop();
+    }
+
+    [Fact]
+    public void EndCurrentNow_WithNothingOnAirThrows()
+    {
+        AddSongs();
+        var controller = Create();
+        controller.CreatePlan(1);
+
+        Assert.Throws<ScheduleException>(() => controller.EndCurrentNow());
+    }
+
+    [Fact]
+    public async Task EditItem_ChangesTheItemOnAirButItCannotBeRemoved()
+    {
+        var (controller, _) = await OnAirWithTheFirstNewsAsync();
+        var start = controller.Plan[0].Start;
+
+        var plan = controller.EditItem(0, "Late news", TimeSpan.FromMinutes(7));
+
+        Assert.Equal("Late news", plan[0].Title);
+        Assert.Equal(start.AddMinutes(7), plan[1].Start);
+        Assert.Equal(0, controller.CurrentIndex);
+        Assert.Equal("Late news", controller.CurrentItem!.Title);
+        Assert.Throws<ScheduleException>(() => controller.Remove(0));
+        controller.Stop();
+    }
+
+    [Fact]
+    public async Task EditItem_ShorteningTheItemOnAirBelowItsRunTimeEndsIt()
+    {
+        var (controller, started) = await OnAirWithTheFirstNewsAsync();
+        _now = _now.AddMinutes(3);
+
+        controller.EditItem(0, "", TimeSpan.FromMinutes(1));
+
+        Assert.True(await started.WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.Equal(1, controller.CurrentIndex);
+        controller.Stop();
+    }
+
+    [Fact]
+    public void UpcomingSpeech_ReturnsNewsWithinTheLeadTimeWhileOnAir()
+    {
+        AddSongs();
+        var hold = new TaskCompletionSource();
+        var controller = Create((_, token) => hold.Task.WaitAsync(token));
+        controller.CreatePlan(1); // news at 15:00
+        var lead = TimeSpan.FromSeconds(30);
+
+        _now = new DateTime(2026, 11, 23, 14, 59, 40);
+        Assert.Null(controller.UpcomingSpeech(lead, lead)); // not on air
+        controller.Start();
+        Assert.Equal(ScheduleItemKind.News, controller.UpcomingSpeech(lead, lead)!.Kind);
+        Assert.Null(controller.UpcomingSpeech(null, lead)); // news alert switched off
+        _now = new DateTime(2026, 11, 23, 14, 59, 0);
+        Assert.Null(controller.UpcomingSpeech(lead, lead));
+        Assert.NotNull(controller.UpcomingSpeech(TimeSpan.FromSeconds(60), null)); // longer lead time
+        controller.Stop();
+    }
+
+    [Fact]
     public void CreatePlan_ThrowsScheduleExceptionForEmptyLibrary()
     {
         Assert.Throws<ScheduleException>(() => Create().CreatePlan(1));
@@ -146,7 +394,7 @@ public sealed class ScheduleControllerTests : IDisposable
         await first.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         var onAir = Assert.Throws<ScheduleException>(() => controller.Swap(0, request.Id));
-        Assert.Contains("already on air", onAir.Message);
+        Assert.Contains("bereits auf Sendung", onAir.Message);
         controller.Swap(1, request.Id);
         Assert.Equal(request.Id, controller.Plan[1].Song!.Id);
         controller.Stop();
