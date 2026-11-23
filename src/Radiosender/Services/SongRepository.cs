@@ -9,7 +9,7 @@ public class SongRepository
     public static string DefaultDatabasePath { get; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Radiosender", "radiosender.db");
 
-    private const string Columns = "Id, Title, Artist, DurationMs, FilePath, Source, License, Attribution";
+    private const string Columns = "Id, Title, Artist, DurationMs, FilePath, Source, License, Attribution, OpenverseId";
 
     private readonly string _connectionString;
 
@@ -29,10 +29,36 @@ public class SongRepository
                 FilePath    TEXT    NOT NULL,
                 Source      INTEGER NOT NULL,
                 License     TEXT,
-                Attribution TEXT
+                Attribution TEXT,
+                OpenverseId TEXT
             )
             """;
         command.ExecuteNonQuery();
+
+        // Databases from before the Openverse id get the column added.
+        command.CommandText = "SELECT COUNT(*) FROM pragma_table_info('Songs') WHERE name = 'OpenverseId'";
+        if ((long)command.ExecuteScalar()! == 0)
+        {
+            command.CommandText = "ALTER TABLE Songs ADD COLUMN OpenverseId TEXT";
+            command.ExecuteNonQuery();
+        }
+
+        // One song per Openverse result, also if two imports of the same track race.
+        command.CommandText = "CREATE UNIQUE INDEX IF NOT EXISTS IX_Songs_OpenverseId ON Songs (OpenverseId) WHERE OpenverseId IS NOT NULL";
+        command.ExecuteNonQuery();
+    }
+
+    /// <summary>Ids of all Openverse results that are already in the library.</summary>
+    public IReadOnlySet<string> GetOpenverseIds()
+    {
+        using var connection = Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT OpenverseId FROM Songs WHERE OpenverseId IS NOT NULL";
+        using var reader = command.ExecuteReader();
+        var ids = new HashSet<string>();
+        while (reader.Read())
+            ids.Add(reader.GetString(0));
+        return ids;
     }
 
     public IReadOnlyList<Song> GetAll()
@@ -63,8 +89,8 @@ public class SongRepository
         using var connection = Open();
         using var command = connection.CreateCommand();
         command.CommandText = """
-            INSERT INTO Songs (Title, Artist, DurationMs, FilePath, Source, License, Attribution)
-            VALUES ($title, $artist, $durationMs, $filePath, $source, $license, $attribution);
+            INSERT INTO Songs (Title, Artist, DurationMs, FilePath, Source, License, Attribution, OpenverseId)
+            VALUES ($title, $artist, $durationMs, $filePath, $source, $license, $attribution, $openverseId);
             SELECT last_insert_rowid();
             """;
         AddParameters(command, song);
@@ -112,6 +138,7 @@ public class SongRepository
         command.Parameters.AddWithValue("$source", (int)song.Source);
         command.Parameters.AddWithValue("$license", (object?)song.License ?? DBNull.Value);
         command.Parameters.AddWithValue("$attribution", (object?)song.Attribution ?? DBNull.Value);
+        command.Parameters.AddWithValue("$openverseId", (object?)song.OpenverseId ?? DBNull.Value);
     }
 
     private static Song Read(SqliteDataReader reader) => new()
@@ -124,5 +151,6 @@ public class SongRepository
         Source = (SongSource)reader.GetInt32(5),
         License = reader.IsDBNull(6) ? null : reader.GetString(6),
         Attribution = reader.IsDBNull(7) ? null : reader.GetString(7),
+        OpenverseId = reader.IsDBNull(8) ? null : reader.GetString(8),
     };
 }

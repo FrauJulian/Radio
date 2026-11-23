@@ -124,4 +124,54 @@ public sealed class SongRepositoryTests : IDisposable
 
         Assert.Throws<SqliteException>(() => repository.Add(song));
     }
-}
+
+    [Fact]
+    public void OpenverseId_IsStoredAndListed()
+    {
+        var repository = new SongRepository(DatabasePath);
+        var song = NewSong();
+        song.OpenverseId = "ov-1";
+        repository.Add(song);
+        repository.Add(NewSong("Uploaded"));
+
+        Assert.Equal("ov-1", repository.GetById(song.Id)!.OpenverseId);
+        Assert.Equal(["ov-1"], repository.GetOpenverseIds());
+    }
+
+    [Fact]
+    public void OpenverseId_CannotBeStoredTwice()
+    {
+        var repository = new SongRepository(DatabasePath);
+        repository.Add(new Song { Title = "A", Artist = "", Duration = TimeSpan.FromSeconds(1), FilePath = "a", OpenverseId = "ov-1" });
+
+        Assert.Throws<SqliteException>(() =>
+            repository.Add(new Song { Title = "B", Artist = "", Duration = TimeSpan.FromSeconds(1), FilePath = "b", OpenverseId = "ov-1" }));
+    }
+
+    [Fact]
+    public void Constructor_AddsOpenverseIdColumnToOlderDatabase()
+    {
+        Directory.CreateDirectory(_directory);
+        using (var connection = new SqliteConnection($"Data Source={DatabasePath}"))
+        {
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = """
+                CREATE TABLE Songs (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT, Title TEXT NOT NULL, Artist TEXT NOT NULL,
+                    DurationMs INTEGER NOT NULL CHECK (DurationMs > 0), FilePath TEXT NOT NULL,
+                    Source INTEGER NOT NULL, License TEXT, Attribution TEXT);
+                INSERT INTO Songs (Title, Artist, DurationMs, FilePath, Source) VALUES ('Old', 'Artist', 1000, 'old.mp3', 0);
+                """;
+            command.ExecuteNonQuery();
+        }
+
+        var repository = new SongRepository(DatabasePath);
+        var song = NewSong();
+        song.OpenverseId = "ov-1";
+        repository.Add(song);
+
+        Assert.Null(Assert.Single(repository.GetAll(), s => s.Title == "Old").OpenverseId);
+        Assert.Equal("ov-1", repository.GetById(song.Id)!.OpenverseId);
+        _ = new SongRepository(DatabasePath); // second start must not try to add the column again
+    }}

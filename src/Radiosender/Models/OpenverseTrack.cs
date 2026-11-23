@@ -5,6 +5,7 @@ namespace Radiosender.Models;
 /// <summary>One audio result of the Openverse search API (fields as documented at api.openverse.org/v1).</summary>
 public class OpenverseTrack
 {
+    public string Id { get; init; } = "";
     public string Title { get; init; } = "";
     public string? Creator { get; init; }
     public string Url { get; init; } = "";

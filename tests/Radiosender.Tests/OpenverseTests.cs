@@ -39,6 +39,7 @@ public sealed class OpenverseTests : IDisposable
 
     private static OpenverseTrack Track(string url = "https://cdn.example.org/a.mp3") => new()
     {
+        Id = "a",
         Title = "Piano Melody",
         Creator = "benpm",
         Url = url,
@@ -66,6 +67,7 @@ public sealed class OpenverseTests : IDisposable
         Assert.Equal("https://api.openverse.org/v1/audio/?q=jazz%20piano&page_size=20", requested!.AbsoluteUri);
         Assert.Equal(2, tracks.Count);
         var first = tracks[0];
+        Assert.Equal("a", first.Id);
         Assert.Equal("Piano Melody", first.Title);
         Assert.Equal("benpm", first.Creator);
         Assert.Equal("https://cdn.example.org/a.mp3", first.Url);
@@ -119,6 +121,8 @@ public sealed class OpenverseTests : IDisposable
         Assert.Equal(Track().Attribution, stored.Attribution);
         Assert.Equal(TimeSpan.FromMilliseconds(10193), stored.Duration);
         Assert.Equal("benpm", stored.Artist);
+        Assert.Equal("a", stored.OpenverseId);
+        Assert.Contains("a", controller.ImportedIds());
     }
 
     [Fact]
@@ -212,4 +216,20 @@ public sealed class OpenverseTests : IDisposable
 
         public override int Read(byte[] buffer, int offset, int count) => throw new IOException("connection reset");
     }
-}
+
+    [Fact]
+    public async Task Import_TrackAlreadyInLibrary_IsRejectedWithoutDownload()
+    {
+        var downloads = 0;
+        var client = NewClient((_, _) => { downloads++; return Respond(HttpStatusCode.OK, new ByteArrayContent(Audio)); });
+        var songs = new SongRepository(Path.Combine(_directory, "test.db"));
+        var controller = new OpenverseController(client, songs);
+        await controller.ImportAsync(Track());
+
+        var error = await Assert.ThrowsAsync<OpenverseException>(() => controller.ImportAsync(Track()));
+
+        Assert.Contains("already in the library", error.Message);
+        Assert.Equal(1, downloads);
+        Assert.Single(songs.GetAll());
+        Assert.Single(MusicFiles());
+    }}

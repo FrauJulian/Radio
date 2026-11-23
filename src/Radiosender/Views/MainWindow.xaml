@@ -28,12 +28,9 @@
                 <ui:NavigationViewItem Content="Library"
                                        Icon="{ui:SymbolIcon MusicNote224}"
                                        TargetPageType="{x:Type pages:LibraryPage}" />
-                <ui:NavigationViewItem Content="Upload"
-                                       Icon="{ui:SymbolIcon ArrowUpload24}"
-                                       TargetPageType="{x:Type pages:UploadPage}" />
-                <ui:NavigationViewItem Content="Openverse"
-                                       Icon="{ui:SymbolIcon Search24}"
-                                       TargetPageType="{x:Type pages:OpenversePage}" />
+                <ui:NavigationViewItem Content="Import"
+                                       Icon="{ui:SymbolIcon ArrowDownload24}"
+                                       TargetPageType="{x:Type pages:ImportPage}" />
             </ui:NavigationView.MenuItems>
         </ui:NavigationView>
     </Grid>

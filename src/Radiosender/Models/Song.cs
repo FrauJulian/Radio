@@ -16,4 +16,7 @@ public class Song
     public SongSource Source { get; set; }
     public string? License { get; set; }
     public string? Attribution { get; set; }
+
+    /// <summary>Id of the Openverse result the song was imported from, so it is not imported twice.</summary>
+    public string? OpenverseId { get; set; }
 }
