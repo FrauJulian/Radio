@@ -22,6 +22,9 @@
                 <ui:NavigationViewItem Content="Home"
                                        Icon="{ui:SymbolIcon Home24}"
                                        TargetPageType="{x:Type pages:HomePage}" />
+                <ui:NavigationViewItem Content="Upload"
+                                       Icon="{ui:SymbolIcon ArrowUpload24}"
+                                       TargetPageType="{x:Type pages:UploadPage}" />
             </ui:NavigationView.MenuItems>
         </ui:NavigationView>
     </Grid>
