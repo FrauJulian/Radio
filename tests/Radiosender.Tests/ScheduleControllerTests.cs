@@ -114,4 +114,49 @@ public sealed class ScheduleControllerTests : IDisposable
         Assert.False(controller.IsPlaying);
         Assert.Null(controller.CurrentItem);
     }
-}
+
+    [Fact]
+    public void Swap_ReplacesAnItemBeforeStart()
+    {
+        AddSongs();
+        var controller = Create();
+        controller.CreatePlan(1);
+        var request = _songs.GetAll()[3];
+
+        var plan = controller.Swap(1, request.Id);
+
+        Assert.Equal(request.Id, plan[1].Song!.Id);
+        Assert.Same(plan, controller.Plan);
+    }
+
+    [Fact]
+    public async Task Swap_WhilePlayingRejectsTheItemOnAirAndAcceptsALaterOne()
+    {
+        AddSongs();
+        var hold = new TaskCompletionSource();
+        var controller = Create((_, token) => hold.Task.WaitAsync(token));
+        controller.CreatePlan(1);
+        var first = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        controller.ItemStarted += (_, _) => first.TrySetResult();
+        var request = _songs.GetAll()[3];
+
+        controller.Start();
+        await first.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        var onAir = Assert.Throws<ScheduleException>(() => controller.Swap(0, request.Id));
+        Assert.Contains("already on air", onAir.Message);
+        controller.Swap(1, request.Id);
+        Assert.Equal(request.Id, controller.Plan[1].Song!.Id);
+        controller.Stop();
+    }
+
+    [Fact]
+    public void Swap_RejectsUnknownSongAndMissingPlan()
+    {
+        AddSongs();
+        var controller = Create();
+        Assert.Throws<ScheduleException>(() => controller.Swap(1, _songs.GetAll()[0].Id));
+
+        controller.CreatePlan(1);
+        Assert.Throws<ScheduleException>(() => controller.Swap(1, 12345));
+    }}

@@ -37,6 +37,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
@@ -135,23 +136,81 @@
             </Grid>
         </Border>
 
+        <!-- Song request (hot swap) -->
+        <Grid Grid.Row="4" Margin="0,0,0,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" MaxWidth="420" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <ui:TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Song request" />
+            <ComboBox x:Name="RequestSong"
+                      Grid.Column="1"
+                      Margin="12,0,0,0"
+                      AutomationProperties.Name="Requested song"
+                      DisplayMemberPath="Label"
+                      IsEditable="True"
+                      IsTextSearchEnabled="True"
+                      TextSearch.TextPath="Label"
+                      SelectionChanged="OnRequestChanged" />
+            <ui:Button x:Name="SwapButton"
+                       Grid.Column="2"
+                       Margin="12,0,0,0"
+                       Content="Play instead of selected"
+                       Icon="{ui:SymbolIcon ArrowSwap24}"
+                       IsEnabled="False"
+                       Click="OnSwap" />
+            <ui:TextBlock x:Name="SwapHint"
+                          Grid.Column="3"
+                          Margin="12,0,0,0"
+                          VerticalAlignment="Center"
+                          Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                          TextTrimming="CharacterEllipsis"
+                          Text="Select an upcoming item in the schedule." />
+        </Grid>
+
         <ui:ListView x:Name="Timeline"
-                     Grid.Row="4"
+                     Grid.Row="5"
                      SelectionMode="Single"
                      IsHitTestVisible="True"
-                     AutomationProperties.Name="Schedule timeline">
+                     AutomationProperties.Name="Schedule timeline"
+                     SelectionChanged="OnTimelineSelectionChanged">
             <ui:ListView.View>
                 <ui:GridView>
+                    <ui:GridViewColumn Width="36">
+                        <ui:GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <ui:SymbolIcon x:Name="OnAir"
+                                               Symbol="Play24"
+                                               Filled="True"
+                                               Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"
+                                               AutomationProperties.Name="On air"
+                                               Visibility="Collapsed" />
+                                <DataTemplate.Triggers>
+                                    <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                                        <Setter TargetName="OnAir" Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </DataTemplate.Triggers>
+                            </DataTemplate>
+                        </ui:GridViewColumn.CellTemplate>
+                    </ui:GridViewColumn>
                     <ui:GridViewColumn Width="90" Header="Start">
                         <ui:GridViewColumn.DisplayMemberBinding>
-                            <Binding Path="Start" StringFormat="HH:mm:ss" />
+                            <Binding Path="Item.Start" StringFormat="HH:mm:ss" />
                         </ui:GridViewColumn.DisplayMemberBinding>
                     </ui:GridViewColumn>
-                    <ui:GridViewColumn Width="120" Header="Type" CellTemplate="{StaticResource KindChip}" />
-                    <ui:GridViewColumn Width="420" Header="Title" DisplayMemberBinding="{Binding Title}" />
+                    <ui:GridViewColumn Width="120" Header="Type">
+                        <ui:GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <ContentPresenter Content="{Binding Item}" ContentTemplate="{StaticResource KindChip}" />
+                            </DataTemplate>
+                        </ui:GridViewColumn.CellTemplate>
+                    </ui:GridViewColumn>
+                    <ui:GridViewColumn Width="420" Header="Title" DisplayMemberBinding="{Binding Item.Title}" />
                     <ui:GridViewColumn Width="90" Header="Duration">
                         <ui:GridViewColumn.DisplayMemberBinding>
-                            <Binding Path="Duration" StringFormat="m\:ss" />
+                            <Binding Path="Item.Duration" StringFormat="m\:ss" />
                         </ui:GridViewColumn.DisplayMemberBinding>
                     </ui:GridViewColumn>
                 </ui:GridView>
@@ -159,7 +218,7 @@
         </ui:ListView>
 
         <ui:TextBlock x:Name="EmptyText"
-                      Grid.Row="4"
+                      Grid.Row="5"
                       Margin="0,48,0,0"
                       HorizontalAlignment="Center"
                       VerticalAlignment="Top"

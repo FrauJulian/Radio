@@ -81,4 +81,30 @@ public class ScheduleController
     }
 
     public void Stop() => _engine.Stop();
+
+    /// <summary>All songs in the library, for the song request picker.</summary>
+    public IReadOnlyList<Song> LibrarySongs() => _songs.GetAll();
+
+    /// <summary>
+    /// Hot swap: plays the song <paramref name="songId"/> in place of the item at <paramref name="index"/>.
+    /// The rest of that half hour is rebuilt so the next news still starts on time; works while playing.
+    /// </summary>
+    /// <exception cref="ScheduleException">The item cannot be replaced or the song does not fit.</exception>
+    public IReadOnlyList<ScheduleItem> Swap(int index, long songId)
+    {
+        if (Plan.Count == 0)
+            throw new ScheduleException("Create a schedule first.");
+        if (index < 0 || index >= Plan.Count)
+            throw new ScheduleException("Select an item in the schedule.");
+        if (IsPlaying && index <= CurrentIndex)
+            throw new ScheduleException("This item is already on air or over. Choose a later item.");
+        var song = _songs.GetById(songId) ?? throw new ScheduleException("The song is no longer in the library.");
+
+        var plan = _generator.Replace(Plan, index, song, _songs.GetAll());
+        // The engine may have moved on while the plan was rebuilt.
+        if (IsPlaying && !_engine.ReplaceUpcoming(plan, index))
+            throw new ScheduleException("This item went on air in the meantime. Choose a later item.");
+        Plan = plan;
+        return plan;
+    }
 }

@@ -73,13 +73,74 @@ public class ScheduleGenerator(ScheduleOptions options, Random random)
             $"No combination of songs fills the slot at {slotStart:HH:mm} so that the last song ends on time. Add more songs, especially shorter ones.");
     }
 
-    private List<Song> PickSongs(TimeSpan budget, List<Song> songs)
+    /// <summary>
+    /// Hot swap: puts <paramref name="requested"/> at <paramref name="index"/> in place of that item and
+    /// rebuilds the rest of its half-hour slot, so the last song still ends exactly when the next news starts.
+    /// Items before <paramref name="index"/> and all later slots stay as they are.
+    /// </summary>
+    /// <exception cref="ScheduleException">The song does not fit before the next news, or the rest cannot be filled.</exception>
+    public IReadOnlyList<ScheduleItem> Replace(IReadOnlyList<ScheduleItem> plan, int index, Song requested, IReadOnlyList<Song> songs)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(index);
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, plan.Count);
+        if (plan[index].Kind == ScheduleItemKind.News)
+            throw new ScheduleException("News cannot be replaced.");
+        if (requested.Duration <= TimeSpan.Zero)
+            throw new ScheduleException("The requested song has no duration.");
+
+        var slotStartIndex = LastIndexOf(plan, index, ScheduleItemKind.News); // -1 if the plan does not start with news
+        var nextNewsIndex = IndexOf(plan, index, ScheduleItemKind.News);
+        var slotEnd = nextNewsIndex < 0 ? plan[^1].End : plan[nextNewsIndex].Start;
+        var start = plan[index].Start;
+        var length = slotEnd - start;
+
+        if (requested.Duration > length)
+            throw new ScheduleException(
+                $"\"{requested.Title}\" ({requested.Duration:m\\:ss}) does not fit before the news at {slotEnd:HH:mm}; only {length:m\\:ss} are left. Choose an earlier item.");
+
+        var prefix = plan.Take(index).ToList();
+        var prefixFiller = Sum(prefix.Skip(slotStartIndex + 1).Where(i => i.Kind is ScheduleItemKind.Ad or ScheduleItemKind.Moderator));
+        var maxGap = options.MaxFillerPerHour / 2 - prefixFiller;
+        var playable = songs.Where(s => s.Duration > TimeSpan.Zero).ToList();
+        var startWithAd = prefix.Count == 0 || prefix[^1].Kind != ScheduleItemKind.Ad;
+
+        for (var attempt = 0; attempt < options.Attempts; attempt++)
+        {
+            List<Song> picked = [requested, .. PickSongs(length - requested.Duration, playable, requested)];
+            var gap = length - Sum(picked);
+            if (gap <= maxGap)
+            {
+                IEnumerable<ScheduleItem> rest = nextNewsIndex < 0 ? [] : plan.Skip(nextNewsIndex);
+                return [.. prefix, .. Arrange(start, picked, BuildFiller(gap, startWithAd)), .. rest];
+            }
+        }
+
+        throw new ScheduleException(
+            $"After \"{requested.Title}\" the slot up to {slotEnd:HH:mm} cannot be filled without exceeding the ad limit. Choose another item or song.");
+    }
+
+    private static int IndexOf(IReadOnlyList<ScheduleItem> plan, int from, ScheduleItemKind kind)
+    {
+        for (var i = from; i < plan.Count; i++)
+            if (plan[i].Kind == kind) return i;
+        return -1;
+    }
+
+    private static int LastIndexOf(IReadOnlyList<ScheduleItem> plan, int before, ScheduleItemKind kind)
+    {
+        for (var i = before - 1; i >= 0; i--)
+            if (plan[i].Kind == kind) return i;
+        return -1;
+    }
+
+    private List<Song> PickSongs(TimeSpan budget, List<Song> songs, Song? previous = null)
     {
         var picked = new List<Song>();
         var left = budget;
         while (true)
         {
-            var fitting = songs.Where(s => s.Duration <= left && (picked.Count == 0 || s.Id != picked[^1].Id || songs.Count == 1)).ToList();
+            var last = picked.Count > 0 ? picked[^1] : previous;
+            var fitting = songs.Where(s => s.Duration <= left && (last is null || s.Id != last.Id || songs.Count == 1)).ToList();
             if (fitting.Count == 0)
                 return picked;
             var song = fitting[random.Next(fitting.Count)];
@@ -89,10 +150,10 @@ public class ScheduleGenerator(ScheduleOptions options, Random random)
     }
 
     // Alternates ad and moderator items, so ads never run back to back.
-    private List<(ScheduleItemKind Kind, string Title, TimeSpan Duration)> BuildFiller(TimeSpan gap)
+    private List<(ScheduleItemKind Kind, string Title, TimeSpan Duration)> BuildFiller(TimeSpan gap, bool startWithAd = true)
     {
         var filler = new List<(ScheduleItemKind, string, TimeSpan)>();
-        var nextIsAd = true;
+        var nextIsAd = startWithAd;
         while (gap > TimeSpan.Zero)
         {
             (ScheduleItemKind kind, string title, TimeSpan duration) = nextIsAd
@@ -132,6 +193,8 @@ public class ScheduleGenerator(ScheduleOptions options, Random random)
     private T Pick<TSource, T>(IReadOnlyList<TSource> source, Func<TSource, T> map) => map(source[random.Next(source.Count)]);
 
     private static TimeSpan Sum(IEnumerable<Song> songs) => songs.Aggregate(TimeSpan.Zero, (total, s) => total + s.Duration);
+
+    private static TimeSpan Sum(IEnumerable<ScheduleItem> items) => items.Aggregate(TimeSpan.Zero, (total, i) => total + i.Duration);
 
     private static TimeSpan Min(TimeSpan a, TimeSpan b) => a < b ? a : b;
 }

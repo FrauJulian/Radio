@@ -159,4 +159,33 @@ public class PlaybackEngineTests
 
         Assert.Equal(["c.mp3"], player.Played);
     }
-}
+
+    [Fact]
+    public async Task ReplaceUpcoming_PlaysTheNewItemsButNotOverItemsAlreadyStarted()
+    {
+        var player = new FakePlayer();
+        var news = new TaskCompletionSource();
+        var first = true;
+        // The first delay is the news; it waits until released. Song timeouts never fire.
+        Task Delay(TimeSpan d, CancellationToken t)
+        {
+            if (first) { first = false; return news.Task.WaitAsync(t); }
+            return d > TimeSpan.FromSeconds(180) ? Task.Delay(Timeout.Infinite, t) : Task.CompletedTask;
+        }
+        var engine = new PlaybackEngine(player, Delay);
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var finished = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        engine.ItemStarted += (_, _) => started.TrySetResult();
+        engine.Finished += (_, _) => finished.TrySetResult();
+
+        engine.Start(Plan);
+        await started.Task.WaitAsync(Wait);
+        IReadOnlyList<ScheduleItem> swapped = [Plan[0], SongItem("request.mp3", 200), .. Plan.Skip(2)];
+
+        Assert.False(engine.ReplaceUpcoming(swapped, 0));
+        Assert.True(engine.ReplaceUpcoming(swapped, 1));
+        news.SetResult();
+        await finished.Task.WaitAsync(Wait);
+
+        Assert.Equal(["request.mp3", "b.mp3"], player.Played);
+    }}

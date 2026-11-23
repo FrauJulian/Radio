@@ -143,4 +143,69 @@ public class ScheduleGeneratorTests
         Assert.Throws<ArgumentException>(() =>
             new ScheduleGenerator(new ScheduleOptions { MaxAdBlock = TimeSpan.FromMinutes(20) }, new Random(1)).Generate(Start, 1, Library));
     }
-}
+
+    private static readonly Song Request = Song(99, 4 * 60 + 17);
+
+    private static ScheduleGenerator Generator(int seed) => new(new ScheduleOptions(), new Random(seed));
+
+    [Theory]
+    [MemberData(nameof(Seeds))]
+    public void Replace_PutsTheSongInPlaceAndKeepsEverythingElseOnTime(int seed)
+    {
+        var plan = Generate(seed, hours: 2);
+        var index = 1; // first item after the 14:00 news
+        var nextNews = plan.Select((p, i) => (p, i)).First(x => x.i > index && x.p.Kind == ScheduleItemKind.News).i;
+
+        var swapped = Generator(seed).Replace(plan, index, Request, Library);
+
+        Assert.Equal(plan.Take(index), swapped.Take(index));
+        Assert.Equal(Request, swapped[index].Song);
+        Assert.Equal(plan[index].Start, swapped[index].Start);
+        // Later slots are untouched, so the next news is still at 14:30.
+        var swappedNews = swapped.Select((p, i) => (p, i)).First(x => x.i > index && x.p.Kind == ScheduleItemKind.News).i;
+        Assert.Equal(plan.Skip(nextNews), swapped.Skip(swappedNews));
+        Assert.Equal(ScheduleItemKind.Song, swapped[swappedNews - 1].Kind);
+        for (var i = 1; i < swapped.Count; i++)
+            Assert.Equal(swapped[i - 1].End, swapped[i].Start);
+    }
+
+    [Theory]
+    [MemberData(nameof(Seeds))]
+    public void Replace_KeepsFillerLimitsAndNoAdsBackToBack(int seed)
+    {
+        var plan = Generate(seed, hours: 1);
+        // Every non-news item in the first half hour, so prefixes with filler are covered too.
+        var last = plan.Select((p, i) => (p, i)).First(x => x.i > 0 && x.p.Kind == ScheduleItemKind.News).i;
+        for (var index = 1; index < last; index++)
+        {
+            IReadOnlyList<ScheduleItem> swapped;
+            try { swapped = Generator(seed).Replace(plan, index, Request, Library); }
+            catch (ScheduleException) { continue; } // too little time left before the news
+
+            var filler = swapped.Where(i => i.Kind is ScheduleItemKind.Ad or ScheduleItemKind.Moderator)
+                .Aggregate(TimeSpan.Zero, (sum, i) => sum + i.Duration);
+            Assert.True(filler <= TimeSpan.FromMinutes(20), $"{filler} filler after swap at {index}");
+            for (var i = 1; i < swapped.Count; i++)
+                Assert.False(swapped[i - 1].Kind == ScheduleItemKind.Ad && swapped[i].Kind == ScheduleItemKind.Ad,
+                    $"Ads back to back at {swapped[i].Start:HH:mm:ss}");
+        }
+    }
+
+    [Fact]
+    public void Replace_RejectsSongThatDoesNotFitBeforeTheNews()
+    {
+        var plan = Generate(1, hours: 1);
+        var beforeNews = plan.Select((p, i) => (p, i)).First(x => x.i > 0 && x.p.Kind == ScheduleItemKind.News).i - 1;
+        var tooLong = Song(98, 25 * 60);
+
+        var ex = Assert.Throws<ScheduleException>(() => Generator(1).Replace(plan, beforeNews, tooLong, Library));
+        Assert.Contains("does not fit", ex.Message);
+    }
+
+    [Fact]
+    public void Replace_RejectsNews()
+    {
+        var plan = Generate(1, hours: 1);
+
+        Assert.Throws<ScheduleException>(() => Generator(1).Replace(plan, 0, Request, Library));
+    }}
