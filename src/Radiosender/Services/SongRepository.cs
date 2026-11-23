@@ -1,156 +1,112 @@
 using System.IO;
 using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
 using Radiosender.Models;
 
 namespace Radiosender.Services;
 
+/// <summary>
+/// The music library in a SQLite file, accessed through Entity Framework Core.
+/// Every call uses its own short-lived context, so the repository can be used from any thread.
+/// </summary>
 public class SongRepository
 {
     public static string DefaultDatabasePath { get; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Radiosender", "radiosender.db");
 
-    private const string Columns = "Id, Title, Artist, DurationMs, FilePath, Source, License, Attribution, OpenverseId";
-
-    private readonly string _connectionString;
+    private readonly DbContextOptions<LibraryContext> _options;
 
     public SongRepository(string databasePath)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(databasePath))!);
-        _connectionString = new SqliteConnectionStringBuilder { DataSource = databasePath }.ToString();
+        _options = new DbContextOptionsBuilder<LibraryContext>()
+            .UseSqlite(new SqliteConnectionStringBuilder { DataSource = databasePath }.ToString())
+            .Options;
 
-        using var connection = Open();
-        using var command = connection.CreateCommand();
-        command.CommandText = """
-            CREATE TABLE IF NOT EXISTS Songs (
-                Id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                Title       TEXT    NOT NULL,
-                Artist      TEXT    NOT NULL,
-                DurationMs  INTEGER NOT NULL CHECK (DurationMs > 0),
-                FilePath    TEXT    NOT NULL,
-                Source      INTEGER NOT NULL,
-                License     TEXT,
-                Attribution TEXT,
-                OpenverseId TEXT
-            )
-            """;
-        command.ExecuteNonQuery();
-
-        // Databases from before the Openverse id get the column added.
-        command.CommandText = "SELECT COUNT(*) FROM pragma_table_info('Songs') WHERE name = 'OpenverseId'";
-        if ((long)command.ExecuteScalar()! == 0)
-        {
-            command.CommandText = "ALTER TABLE Songs ADD COLUMN OpenverseId TEXT";
-            command.ExecuteNonQuery();
-        }
-
-        // One song per Openverse result, also if two imports of the same track race.
-        command.CommandText = "CREATE UNIQUE INDEX IF NOT EXISTS IX_Songs_OpenverseId ON Songs (OpenverseId) WHERE OpenverseId IS NOT NULL";
-        command.ExecuteNonQuery();
+        // Creates the file and the table on first start; an existing database is left as it is.
+        using var context = Open();
+        context.Database.EnsureCreated();
     }
 
     /// <summary>Ids of all Openverse results that are already in the library.</summary>
     public IReadOnlySet<string> GetOpenverseIds()
     {
-        using var connection = Open();
-        using var command = connection.CreateCommand();
-        command.CommandText = "SELECT OpenverseId FROM Songs WHERE OpenverseId IS NOT NULL";
-        using var reader = command.ExecuteReader();
-        var ids = new HashSet<string>();
-        while (reader.Read())
-            ids.Add(reader.GetString(0));
-        return ids;
+        using var context = Open();
+        return context.Songs.Where(s => s.OpenverseId != null).Select(s => s.OpenverseId!).ToHashSet();
     }
 
     public IReadOnlyList<Song> GetAll()
     {
-        using var connection = Open();
-        using var command = connection.CreateCommand();
-        command.CommandText = $"SELECT {Columns} FROM Songs ORDER BY Artist, Title";
-        using var reader = command.ExecuteReader();
-        var songs = new List<Song>();
-        while (reader.Read())
-            songs.Add(Read(reader));
-        return songs;
+        using var context = Open();
+        return context.Songs.AsNoTracking().OrderBy(s => s.Artist).ThenBy(s => s.Title).ToList();
     }
 
     public Song? GetById(long id)
     {
-        using var connection = Open();
-        using var command = connection.CreateCommand();
-        command.CommandText = $"SELECT {Columns} FROM Songs WHERE Id = $id";
-        command.Parameters.AddWithValue("$id", id);
-        using var reader = command.ExecuteReader();
-        return reader.Read() ? Read(reader) : null;
+        using var context = Open();
+        return context.Songs.AsNoTracking().FirstOrDefault(s => s.Id == id);
     }
 
     /// <summary>Inserts the song and sets its <see cref="Song.Id"/>.</summary>
+    /// <exception cref="ArgumentException">The song has no duration.</exception>
+    /// <exception cref="DbUpdateException">The database rejected the song, e.g. a second song with the same Openverse id.</exception>
     public void Add(Song song)
     {
-        using var connection = Open();
-        using var command = connection.CreateCommand();
-        command.CommandText = """
-            INSERT INTO Songs (Title, Artist, DurationMs, FilePath, Source, License, Attribution, OpenverseId)
-            VALUES ($title, $artist, $durationMs, $filePath, $source, $license, $attribution, $openverseId);
-            SELECT last_insert_rowid();
-            """;
-        AddParameters(command, song);
-        song.Id = (long)command.ExecuteScalar()!;
+        RequireDuration(song);
+        using var context = Open();
+        context.Songs.Add(song);
+        context.SaveChanges();
     }
 
+    /// <summary>Stores everything except the Openverse id, which never changes after the import.</summary>
     /// <returns><c>false</c> if no song with this id exists.</returns>
+    /// <exception cref="ArgumentException">The song has no duration.</exception>
     public bool Update(Song song)
     {
-        using var connection = Open();
-        using var command = connection.CreateCommand();
-        command.CommandText = """
-            UPDATE Songs SET Title = $title, Artist = $artist, DurationMs = $durationMs, FilePath = $filePath,
-                Source = $source, License = $license, Attribution = $attribution
-            WHERE Id = $id
-            """;
-        AddParameters(command, song);
-        command.Parameters.AddWithValue("$id", song.Id);
-        return command.ExecuteNonQuery() == 1;
+        RequireDuration(song);
+        using var context = Open();
+        return context.Songs.Where(s => s.Id == song.Id).ExecuteUpdate(s => s
+            .SetProperty(x => x.Title, song.Title)
+            .SetProperty(x => x.Artist, song.Artist)
+            .SetProperty(x => x.Duration, song.Duration)
+            .SetProperty(x => x.FilePath, song.FilePath)
+            .SetProperty(x => x.Source, song.Source)
+            .SetProperty(x => x.License, song.License)
+            .SetProperty(x => x.Attribution, song.Attribution)) == 1;
     }
 
     /// <returns><c>false</c> if no song with this id exists.</returns>
     public bool Delete(long id)
     {
-        using var connection = Open();
-        using var command = connection.CreateCommand();
-        command.CommandText = "DELETE FROM Songs WHERE Id = $id";
-        command.Parameters.AddWithValue("$id", id);
-        return command.ExecuteNonQuery() == 1;
+        using var context = Open();
+        return context.Songs.Where(s => s.Id == id).ExecuteDelete() == 1;
     }
 
-    private SqliteConnection Open()
+    private LibraryContext Open() => new(_options);
+
+    // Songs need a length for scheduling. Checked here, so the rule does not depend on the database schema.
+    private static void RequireDuration(Song song)
     {
-        var connection = new SqliteConnection(_connectionString);
-        connection.Open();
-        return connection;
+        if (song.Duration <= TimeSpan.Zero)
+            throw new ArgumentException("A song needs a duration longer than zero.", nameof(song));
     }
 
-    private static void AddParameters(SqliteCommand command, Song song)
+    /// <summary>Maps <see cref="Song"/> to the table <c>Songs</c>.</summary>
+    private sealed class LibraryContext(DbContextOptions<LibraryContext> options) : DbContext(options)
     {
-        command.Parameters.AddWithValue("$title", song.Title);
-        command.Parameters.AddWithValue("$artist", song.Artist);
-        command.Parameters.AddWithValue("$durationMs", (long)song.Duration.TotalMilliseconds);
-        command.Parameters.AddWithValue("$filePath", song.FilePath);
-        command.Parameters.AddWithValue("$source", (int)song.Source);
-        command.Parameters.AddWithValue("$license", (object?)song.License ?? DBNull.Value);
-        command.Parameters.AddWithValue("$attribution", (object?)song.Attribution ?? DBNull.Value);
-        command.Parameters.AddWithValue("$openverseId", (object?)song.OpenverseId ?? DBNull.Value);
-    }
+        public DbSet<Song> Songs => Set<Song>();
 
-    private static Song Read(SqliteDataReader reader) => new()
-    {
-        Id = reader.GetInt64(0),
-        Title = reader.GetString(1),
-        Artist = reader.GetString(2),
-        Duration = TimeSpan.FromMilliseconds(reader.GetInt64(3)),
-        FilePath = reader.GetString(4),
-        Source = (SongSource)reader.GetInt32(5),
-        License = reader.IsDBNull(6) ? null : reader.GetString(6),
-        Attribution = reader.IsDBNull(7) ? null : reader.GetString(7),
-        OpenverseId = reader.IsDBNull(8) ? null : reader.GetString(8),
-    };
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            var song = modelBuilder.Entity<Song>();
+            song.ToTable("Songs");
+            // Stored as whole milliseconds in the column the first version of the app created.
+            song.Property(s => s.Duration)
+                .HasColumnName("DurationMs")
+                .HasConversion(duration => (long)duration.TotalMilliseconds, milliseconds => TimeSpan.FromMilliseconds(milliseconds));
+            // One song per Openverse result, also if two imports of the same track race.
+            // SQLite allows any number of rows without an id in a unique index.
+            song.HasIndex(s => s.OpenverseId).IsUnique();
+        }
+    }
 }

@@ -232,11 +232,13 @@ public partial class ImportPage : Page
                     _session.Insert(0, SessionRow.Added(song, song.License ?? ""));
                     ReplaceRow(row, row with { Status = "In Bibliothek", CanImport = false });
                 }
-                catch (Exception ex) when (ex is OpenverseException or Microsoft.Data.Sqlite.SqliteException)
+                catch (Exception ex) when (ex is OpenverseException or Microsoft.EntityFrameworkCore.DbUpdateException)
                 {
-                    _session.Insert(0, SessionRow.Failed(row.Track.Title, ex.Message));
+                    // The database error text is technical and English; the usual cause is a song that is already stored.
+                    var reason = ex is OpenverseException ? ex.Message : "Der Song konnte nicht in der Bibliothek gespeichert werden.";
+                    _session.Insert(0, SessionRow.Failed(row.Track.Title, reason));
                     failed++;
-                    lastError = ex.Message;
+                    lastError = reason;
                 }
             }
         }

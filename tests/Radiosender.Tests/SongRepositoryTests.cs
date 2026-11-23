@@ -1,4 +1,5 @@
 using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
 using Radiosender.Models;
 using Radiosender.Services;
 
@@ -122,7 +123,8 @@ public sealed class SongRepositoryTests : IDisposable
         var song = NewSong();
         song.Duration = TimeSpan.Zero;
 
-        Assert.Throws<SqliteException>(() => repository.Add(song));
+        Assert.Throws<ArgumentException>(() => repository.Add(song));
+        Assert.Empty(repository.GetAll());
     }
 
     [Fact]
@@ -144,12 +146,30 @@ public sealed class SongRepositoryTests : IDisposable
         var repository = new SongRepository(DatabasePath);
         repository.Add(new Song { Title = "A", Artist = "", Duration = TimeSpan.FromSeconds(1), FilePath = "a", OpenverseId = "ov-1" });
 
-        Assert.Throws<SqliteException>(() =>
+        Assert.Throws<DbUpdateException>(() =>
             repository.Add(new Song { Title = "B", Artist = "", Duration = TimeSpan.FromSeconds(1), FilePath = "b", OpenverseId = "ov-1" }));
     }
 
     [Fact]
-    public void Constructor_AddsOpenverseIdColumnToOlderDatabase()
+    public void Update_RejectsZeroDurationAndKeepsTheOpenverseId()
+    {
+        var repository = new SongRepository(DatabasePath);
+        var song = NewSong();
+        song.OpenverseId = "ov-1";
+        repository.Add(song);
+
+        song.Title = "Renamed";
+        song.OpenverseId = "changed";
+        Assert.True(repository.Update(song));
+        Assert.Equal("ov-1", repository.GetById(song.Id)!.OpenverseId);
+
+        song.Duration = TimeSpan.Zero;
+        Assert.Throws<ArgumentException>(() => repository.Update(song));
+    }
+
+    // The schema below is what the app created before it used Entity Framework Core; libraries from then must keep working.
+    [Fact]
+    public void Constructor_OpensADatabaseFromBeforeEntityFramework()
     {
         Directory.CreateDirectory(_directory);
         using (var connection = new SqliteConnection($"Data Source={DatabasePath}"))
@@ -160,18 +180,25 @@ public sealed class SongRepositoryTests : IDisposable
                 CREATE TABLE Songs (
                     Id INTEGER PRIMARY KEY AUTOINCREMENT, Title TEXT NOT NULL, Artist TEXT NOT NULL,
                     DurationMs INTEGER NOT NULL CHECK (DurationMs > 0), FilePath TEXT NOT NULL,
-                    Source INTEGER NOT NULL, License TEXT, Attribution TEXT);
-                INSERT INTO Songs (Title, Artist, DurationMs, FilePath, Source) VALUES ('Old', 'Artist', 1000, 'old.mp3', 0);
+                    Source INTEGER NOT NULL, License TEXT, Attribution TEXT, OpenverseId TEXT);
+                CREATE UNIQUE INDEX IX_Songs_OpenverseId ON Songs (OpenverseId) WHERE OpenverseId IS NOT NULL;
+                INSERT INTO Songs (Title, Artist, DurationMs, FilePath, Source, License, OpenverseId)
+                VALUES ('Old', 'Artist', 185500, 'old.mp3', 1, 'CC BY 4.0', 'ov-old');
                 """;
             command.ExecuteNonQuery();
         }
 
         var repository = new SongRepository(DatabasePath);
-        var song = NewSong();
-        song.OpenverseId = "ov-1";
-        repository.Add(song);
+        var old = Assert.Single(repository.GetAll());
+        Assert.Equal("Old", old.Title);
+        Assert.Equal(TimeSpan.FromSeconds(185.5), old.Duration);
+        Assert.Equal(SongSource.Openverse, old.Source);
+        Assert.Equal("ov-old", old.OpenverseId);
 
-        Assert.Null(Assert.Single(repository.GetAll(), s => s.Title == "Old").OpenverseId);
-        Assert.Equal("ov-1", repository.GetById(song.Id)!.OpenverseId);
-        _ = new SongRepository(DatabasePath); // second start must not try to add the column again
+        var added = NewSong("New");
+        repository.Add(added);
+        old.Title = "Renamed";
+        Assert.True(repository.Update(old));
+        Assert.Equal(["New", "Renamed"], repository.GetAll().Select(s => s.Title).Order());
+        Assert.True(repository.Delete(added.Id));
     }}

@@ -72,7 +72,7 @@ Views only handle input and display. They call a controller, and the controller 
 
 Main services:
 
-- `SongRepository`: CRUD for songs in SQLite, with parameterized queries
+- `SongRepository`: CRUD for songs in SQLite through Entity Framework Core, without SQL in the code
 - `SongImportService`: copies an uploaded file into the music folder, reads its tags with TagLibSharp and its duration with NAudio
 - `OpenverseClient`: anonymous search and download through the Openverse API
 - `MusicPlayer`: the audio player as a singleton (`MusicPlayer.Instance`, private constructor). It plays files with NAudio.
@@ -97,7 +97,7 @@ For each downloaded track the app stores the license (for example `CC BY 4.0`) a
 | Up to 20 minutes of ads and moderator talk per hour | Targets in the settings. The defaults are 20 minutes of ads plus 10 of moderator talk, which is 30; set them to 20 together to meet this rule | Configurable |
 | Ads never 20 minutes in a row | One ad item lasts at most 5 minutes and follows a moderator item | Done |
 | Remaining time filled with music | Songs fill each slot | Done |
-| Music comes from a SQLite database | `SongRepository`, `radiosender.db` | Done |
+| Music comes from a SQLite database | `SongRepository` with Entity Framework Core, `radiosender.db` | Done |
 | Library can be extended at any time: add, edit, delete | Library page and `SongEditWindow` | Done |
 | Add by simple upload | Import page, "Vom Computer" (MP3, WAV, several files, drag and drop) | Done |
 | Add through the Openverse API | Import page, "Openverse" | Done |
@@ -114,6 +114,7 @@ For each downloaded track the app stores the license (for example `CC BY 4.0`) a
 - **Manual edits** shift every later item, so after moving, removing or resizing an item the news can leave :00 and :30 and the plan can end earlier or later.
 - **Late items**: if a song plays longer than its stored duration, the following items start late by the same amount. Nothing is cut to catch up; the delay only disappears when a later item ends early.
 - **Skipped songs**: a song that cannot be played (missing file, unsupported format) is skipped with a warning, and the station stays silent until the next planned item.
+- **Very old libraries**: a `radiosender.db` from before the Openverse import has no `OpenverseId` column and is not upgraded. Delete the file and import the music again.
 - **Deleting a song** removes it from the library but keeps its file in the `Music` folder.
 - **Placeholders** have no audio.
 - **Targets** for ads and moderator talk are missed by the time the songs cannot fill, usually a few seconds per hour; a small library or only long songs make that more.
