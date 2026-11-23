@@ -16,9 +16,9 @@ public class OpenverseController(OpenverseClient client, SongRepository songs)
     public async Task<Song> ImportAsync(OpenverseTrack track, CancellationToken cancellationToken = default)
     {
         if (track.Duration is not { } duration)
-            throw new OpenverseException("This result has no duration and cannot be imported.");
+            throw new OpenverseException("Dieses Ergebnis hat keine Dauer und kann nicht importiert werden.");
         if (track.Id.Length > 0 && ImportedIds().Contains(track.Id))
-            throw new OpenverseException($"\"{track.Title}\" is already in the library.");
+            throw new OpenverseException($"\"{track.Title}\" ist bereits in der Bibliothek.");
 
         var path = await client.DownloadAsync(track, cancellationToken);
         var song = new Song
