@@ -80,7 +80,7 @@ public sealed class MusicPlayer : IAudioPlayer
             Release();
 
             if (!File.Exists(filePath))
-                throw new FileNotFoundException($"Audio file not found: {filePath}", filePath);
+                throw new FileNotFoundException($"Audiodatei nicht gefunden: {filePath}", filePath);
 
             try
             {
@@ -88,7 +88,7 @@ public sealed class MusicPlayer : IAudioPlayer
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
-                throw new InvalidDataException($"Cannot read audio file: {filePath}", ex);
+                throw new InvalidDataException($"Audiodatei kann nicht gelesen werden: {filePath}", ex);
             }
 
             try

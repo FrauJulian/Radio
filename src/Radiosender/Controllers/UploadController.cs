@@ -8,7 +8,7 @@ public record UploadResult(bool Success, string Message, Song? Song = null);
 
 public class UploadController(SongImportService importService)
 {
-    public static string FileDialogFilter { get; } = "Audio files (*.mp3;*.wav)|*.mp3;*.wav";
+    public static string FileDialogFilter { get; } = "Audiodateien (*.mp3;*.wav)|*.mp3;*.wav";
 
     /// <summary>Imports one file; failures come back as a result, so a batch can go on with the next file.</summary>
     public UploadResult Upload(string filePath)
@@ -16,7 +16,7 @@ public class UploadController(SongImportService importService)
         try
         {
             var song = importService.Import(filePath);
-            return new UploadResult(true, $"\"{song.Title}\" ({(int)song.Duration.TotalMinutes}:{song.Duration.Seconds:00}) was added to the library.", song);
+            return new UploadResult(true, $"\"{song.Title}\" ({(int)song.Duration.TotalMinutes}:{song.Duration.Seconds:00}) wurde zur Bibliothek hinzugefügt.", song);
         }
         catch (SongImportException e)
         {
@@ -24,7 +24,7 @@ public class UploadController(SongImportService importService)
         }
         catch (Exception e)
         {
-            return new UploadResult(false, $"The song could not be saved: {e.Message}");
+            return new UploadResult(false, $"Der Song konnte nicht gespeichert werden: {e.Message}");
         }
     }
 }

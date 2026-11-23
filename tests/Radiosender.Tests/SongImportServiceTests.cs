@@ -126,6 +126,6 @@ public sealed class SongImportServiceTests : IDisposable
         Assert.Equal([true, false, true], results.Select(r => r.Success));
         Assert.Equal("first", results[0].Song!.Title);
         Assert.Null(results[1].Song);
-        Assert.Contains("MP3 and WAV", results[1].Message);
+        Assert.Contains("MP3- und WAV", results[1].Message);
         Assert.Equal(2, _repository.GetAll().Count);
     }}

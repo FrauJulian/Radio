@@ -19,7 +19,7 @@ public class SongImportService(SongRepository songs, string musicDirectory)
     public Song Import(string sourcePath)
     {
         if (!SupportedExtensions.Contains(Path.GetExtension(sourcePath).ToLowerInvariant()))
-            throw new SongImportException("Only MP3 and WAV files are supported.");
+            throw new SongImportException("Nur MP3- und WAV-Dateien werden unterstützt.");
 
         Directory.CreateDirectory(musicDirectory);
         var targetPath = GetUniqueTargetPath(Path.GetFileName(sourcePath));
@@ -29,7 +29,7 @@ public class SongImportService(SongRepository songs, string musicDirectory)
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
-            throw new SongImportException($"The file could not be read: {e.Message}", e);
+            throw new SongImportException($"Die Datei konnte nicht gelesen werden: {e.Message}", e);
         }
 
         try
@@ -75,11 +75,11 @@ public class SongImportService(SongRepository songs, string musicDirectory)
         catch (Exception e)
         {
             // NAudio and Media Foundation throw many unrelated exception types for corrupt files.
-            throw new SongImportException("The file is not a readable MP3 or WAV file.", e);
+            throw new SongImportException("Die Datei ist keine lesbare MP3- oder WAV-Datei.", e);
         }
 
         if (duration <= TimeSpan.Zero)
-            throw new SongImportException("The file contains no audio.");
+            throw new SongImportException("Die Datei enthält kein Audio.");
         return duration;
     }
 
