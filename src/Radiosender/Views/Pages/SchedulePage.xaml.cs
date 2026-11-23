@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
@@ -14,10 +15,24 @@ public partial class SchedulePage : Page
     private readonly DispatcherTimer _progressTimer = new() { Interval = TimeSpan.FromMilliseconds(250) };
     private bool _loading;
     private int _scrolledTo = -1;
+    private bool _shownPlaying;
+
+    // Weekday names in the start list follow the interface language, not the Windows setting.
+    private static readonly System.Globalization.CultureInfo German = new("de-DE");
+
+    // Bound once and updated row by row, so a click never rebuilds the whole list.
+    private readonly ObservableCollection<TimelineRow> _rows = [];
+
+    // A controller call is running on a pool thread; the buttons that would collide with it are off.
+    private bool _working;
+
+    // Optimistic state: what the user just asked for, shown before the engine has caught up.
+    private bool? _expectPlaying;
 
     public SchedulePage()
     {
         InitializeComponent();
+        Timeline.ItemsSource = _rows;
         // Also refreshes the buttons: Finished can arrive just before the engine reports it stopped.
         _progressTimer.Tick += (_, _) =>
         {
@@ -36,6 +51,9 @@ public partial class SchedulePage : Page
         _loading = true;
         VolumeSlider.Value = _controller.Volume;
         _loading = false;
+        FillStartTimes();
+        if (_controller.Plan.Count > 0)
+            UnlimitedBox.IsChecked = _controller.IsUnlimited;
 
         // The library can change on other pages.
         RequestSong.ItemsSource = _controller.LibrarySongs()
@@ -55,63 +73,146 @@ public partial class SchedulePage : Page
         _progressTimer.Stop();
     }
 
-    private void OnCreate(object sender, RoutedEventArgs e)
+    // The next 12 full hours; rebuilt when the list opens, so it never offers a past hour.
+    private void FillStartTimes()
     {
-        var hours = (int)(HoursBox.Value ?? 1);
-        try
-        {
-            _controller.CreatePlan(hours);
-            var plan = _controller.Plan;
-            ShowMessage(InfoBarSeverity.Success, "Schedule created",
-                $"{hours} h from {plan[0].Start:HH:mm} to {plan[^1].End:HH:mm}, {plan.Count} items.");
-        }
-        catch (Exception ex) when (ex is ScheduleException or ArgumentOutOfRangeException)
-        {
-            ShowMessage(InfoBarSeverity.Error, "Could not create the schedule", ex.Message);
-        }
-        ShowCurrent();
+        var selected = (StartBox.SelectedItem as StartOption)?.Time;
+        var now = DateTime.Now;
+        var next = now.Date.AddHours(now.Hour + 1);
+        var options = Enumerable.Range(0, 12)
+            .Select(i => next.AddHours(i))
+            .Select(t => new StartOption(t, t.Date == now.Date ? $"{t:HH:mm}" : t.ToString("ddd HH:mm", German)))
+            .ToList();
+        StartBox.ItemsSource = options;
+        StartBox.SelectedItem = options.FirstOrDefault(o => o.Time == selected) ?? options[0];
     }
 
-    private void OnSwap(object sender, RoutedEventArgs e)
+    private void OnStartDropDownOpened(object? sender, EventArgs e) => FillStartTimes();
+
+    private void OnUnlimitedChanged(object sender, RoutedEventArgs e) =>
+        HoursBox.IsEnabled = UnlimitedBox.IsChecked != true;
+
+    private void OnCreate(object sender, RoutedEventArgs e) => CreatePlan(startNow: false);
+
+    private void OnStartNow(object sender, RoutedEventArgs e) => CreatePlan(startNow: true);
+
+    private async void CreatePlan(bool startNow)
+    {
+        int? hours = UnlimitedBox.IsChecked == true ? null : (int)(HoursBox.Value ?? 1);
+        var start = (StartBox.SelectedItem as StartOption)?.Time;
+        if (startNow)
+            _expectPlaying = true;
+        await RunAsync("Der Plan konnte nicht erstellt werden", () =>
+        {
+            if (startNow)
+                _controller.StartNow(hours);
+            else
+                _controller.CreatePlan(hours, start);
+        });
+    }
+
+    /// <summary>
+    /// Runs a controller call that can take a moment (planning, waiting for the audio thread to stop)
+    /// off the UI thread, so the window stays responsive. Returns <c>false</c> after showing the error.
+    /// </summary>
+    private async Task<bool> RunAsync(string errorTitle, Action work)
+    {
+        _working = true;
+        UpdateButtons();
+        try
+        {
+            await Task.Run(work);
+            Message.IsOpen = false;
+            return true;
+        }
+        catch (Exception ex) when (ex is ScheduleException or ArgumentOutOfRangeException or InvalidOperationException)
+        {
+            ShowMessage(InfoBarSeverity.Error, errorTitle, ex.Message);
+            return false;
+        }
+        finally
+        {
+            _working = false;
+            _expectPlaying = null;
+            ShowCurrent();
+        }
+    }
+
+    private async void OnSwap(object sender, RoutedEventArgs e)
     {
         if (Timeline.SelectedItem is not TimelineRow row || RequestSong.SelectedItem is not SongOption song)
             return;
-        try
-        {
-            var plan = _controller.Swap(row.Index, song.Id);
-            var placed = plan[row.Index];
-            ShowMessage(InfoBarSeverity.Success, "Song request planned",
-                $"\"{placed.Title}\" plays at {placed.Start:HH:mm:ss} instead of \"{row.Item.Title}\". The rest of that half hour was replanned, the news stays on time.");
-        }
-        catch (ScheduleException ex)
-        {
-            ShowMessage(InfoBarSeverity.Error, "Could not play the request", ex.Message);
-        }
-        ShowCurrent();
+        ScheduleItem? placed = null;
+        if (await RunAsync("Der Songwunsch konnte nicht eingeplant werden", () => placed = _controller.Swap(row.Index, song.Id)[row.Index]))
+            ShowMessage(InfoBarSeverity.Success, "Songwunsch eingeplant",
+                $"\"{placed!.Title}\" läuft um {placed.Start:HH:mm:ss}.");
     }
 
     private void OnRequestChanged(object sender, SelectionChangedEventArgs e) => UpdateButtons();
 
-    private void OnTimelineSelectionChanged(object sender, SelectionChangedEventArgs e) => UpdateButtons();
+    private void OnMoveUp(object sender, RoutedEventArgs e) => MoveSelected(-1);
 
-    private void OnStart(object sender, RoutedEventArgs e)
+    private void OnMoveDown(object sender, RoutedEventArgs e) => MoveSelected(1);
+
+    // The selection follows the item, so it can be moved several steps in a row.
+    private void MoveSelected(int offset) => ChangeSelected(row =>
     {
-        Message.IsOpen = false;
+        _controller.Move(row.Index, offset);
+        Timeline.SelectedIndex = row.Index + offset;
+    });
+
+    private void OnEndNow(object sender, RoutedEventArgs e)
+    {
         try
         {
-            _controller.Start();
+            _controller.EndCurrentNow();
+            Message.IsOpen = false;
         }
-        catch (InvalidOperationException ex)
+        catch (ScheduleException ex)
         {
-            ShowMessage(InfoBarSeverity.Warning, "Could not start", ex.Message);
+            ShowMessage(InfoBarSeverity.Error, "Das Element konnte nicht beendet werden", ex.Message);
         }
         ShowCurrent();
     }
 
-    private void OnStop(object sender, RoutedEventArgs e)
+    private void OnRemove(object sender, RoutedEventArgs e) => ChangeSelected(row => _controller.Remove(row.Index));
+
+    private void OnEditItem(object sender, RoutedEventArgs e)
     {
-        _controller.Stop();
+        if (!EditItemButton.IsEnabled || Timeline.SelectedItem is not TimelineRow row)
+            return;
+        var dialog = new ScheduleItemEditWindow(row.Item) { Owner = Window.GetWindow(this) };
+        if (dialog.ShowDialog() == true)
+            ChangeSelected(r => _controller.EditItem(r.Index, dialog.ItemTitle, dialog.Duration));
+    }
+
+    private void ChangeSelected(Action<TimelineRow> change)
+    {
+        if (Timeline.SelectedItem is not TimelineRow row)
+            return;
+        try
+        {
+            change(row);
+            Message.IsOpen = false;
+        }
+        catch (ScheduleException ex)
+        {
+            ShowMessage(InfoBarSeverity.Error, "Der Plan konnte nicht geändert werden", ex.Message);
+        }
         ShowCurrent();
+    }
+
+    private void OnTimelineSelectionChanged(object sender, SelectionChangedEventArgs e) => UpdateButtons();
+
+    private async void OnPlayToggle(object sender, RoutedEventArgs e)
+    {
+        var stop = _controller.IsPlaying;
+        // The button and the card switch at once; stopping waits for the audio thread in the background.
+        _expectPlaying = !stop;
+        if (stop)
+            NowKind.Visibility = Visibility.Collapsed;
+        UpdateProgress();
+        await RunAsync("Start nicht möglich", stop ? _controller.Stop : _controller.Start);
     }
 
     private void OnVolumeChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -123,15 +224,15 @@ public partial class SchedulePage : Page
     private void OnItemStarted(object? sender, int index) => Dispatcher.BeginInvoke(ShowCurrent);
 
     private void OnItemFailed(object? sender, string message) =>
-        Dispatcher.BeginInvoke(() => ShowMessage(InfoBarSeverity.Warning, "Item skipped", message));
+        Dispatcher.BeginInvoke(() => ShowMessage(InfoBarSeverity.Warning, "Element übersprungen", message));
 
     private void OnFinished(object? sender, EventArgs e) => Dispatcher.BeginInvoke(() =>
     {
-        ShowMessage(InfoBarSeverity.Informational, "Broadcast finished", "The whole schedule has been played.");
+        ShowMessage(InfoBarSeverity.Informational, "Sendung beendet", "Der ganze Plan wurde gespielt.");
         ShowCurrent();
     });
 
-    // Rebuilds the rows from the controller; the selection is the user's swap target and is kept.
+    // Syncs the rows with the controller; the selection is the user's swap target and is kept.
     private void ShowCurrent()
     {
         var item = _controller.CurrentItem;
@@ -139,8 +240,19 @@ public partial class SchedulePage : Page
         var plan = _controller.Plan;
 
         var selected = Timeline.SelectedIndex;
-        var rows = plan.Select((p, i) => new TimelineRow(i, p, i == current)).ToList();
-        Timeline.ItemsSource = rows;
+        // Rows are records: only the ones whose content changed are replaced.
+        for (var i = 0; i < plan.Count; i++)
+        {
+            var updated = new TimelineRow(i, plan[i], i == current);
+            if (i == _rows.Count)
+                _rows.Add(updated);
+            else if (_rows[i] != updated)
+                _rows[i] = updated;
+        }
+        while (_rows.Count > plan.Count)
+            _rows.RemoveAt(_rows.Count - 1);
+        var rows = _rows;
+        GridColumns.Fit(Timeline);
         Timeline.SelectedIndex = selected < rows.Count ? selected : -1;
         // Follow the broadcast when it moves on; otherwise keep the user's row in view.
         if (current != _scrolledTo && current >= 0 && current < rows.Count)
@@ -152,7 +264,7 @@ public partial class SchedulePage : Page
 
         NowKind.Content = item;
         NowKind.Visibility = item is null ? Visibility.Collapsed : Visibility.Visible;
-        if (item is not null) NowTitle.Text = item.Title;
+        if (item is not null) NowTitle.Text = item.Title.Length > 0 ? item.Title : item.KindName;
 
         UpdateButtons();
         UpdateProgress();
@@ -160,38 +272,60 @@ public partial class SchedulePage : Page
 
     private void UpdateButtons()
     {
-        var playing = _controller.IsPlaying;
-        StartButton.IsEnabled = !playing && _controller.Plan.Count > 0;
-        StopButton.IsEnabled = playing;
+        var playing = _expectPlaying ?? _controller.IsPlaying;
+        PlayButton.IsEnabled = !_working && (playing || _controller.Plan.Count > 0);
+        CreateButton.IsEnabled = StartNowButton.IsEnabled = !_working;
+        // Called every timer tick, so the label and icon change only with the state.
+        if (playing != _shownPlaying)
+        {
+            _shownPlaying = playing;
+            PlayButton.Content = playing ? "Stopp" : "Start";
+            PlayButton.Icon = new SymbolIcon(playing ? SymbolRegular.Stop24 : SymbolRegular.Play24);
+        }
 
         var row = Timeline.SelectedItem as TimelineRow;
+
+        // Only items that are not on air or over can be moved or removed; the one on air can still be edited.
+        var count = _controller.Plan.Count;
+        var current = _controller.CurrentIndex;
+        bool Editable(int i) => !_working && i >= 0 && i < count && (!playing || i > current);
+        var index = row?.Index ?? -1;
+        MoveUpButton.IsEnabled = Editable(index) && Editable(index - 1);
+        MoveDownButton.IsEnabled = Editable(index) && Editable(index + 1);
+        RemoveButton.IsEnabled = Editable(index);
+        var onAir = !_working && playing && index >= 0 && index == current;
+        EditItemButton.IsEnabled = (Editable(index) || onAir) && row!.Item.Kind != ScheduleItemKind.Song;
+        EndNowButton.IsEnabled = !_working && _expectPlaying != false && _controller.CurrentItem is not null;
+
         var blocker = row switch
         {
-            null => "Select an upcoming item in the schedule.",
-            { Item.Kind: ScheduleItemKind.News } => "News cannot be replaced.",
-            _ when playing && row.Index <= _controller.CurrentIndex => "This item is already on air or over.",
-            _ when RequestSong.SelectedItem is null => "Choose a song from the library.",
+            null => "Ein kommendes Element im Plan auswählen.",
+            { Item.Kind: ScheduleItemKind.News } => "Nachrichten können nicht ersetzt werden.",
+            _ when playing && row.Index <= _controller.CurrentIndex => "Dieses Element ist bereits auf Sendung oder vorbei.",
             _ => null,
         };
-        SwapHint.Text = blocker ?? $"Replaces the item at {row!.Item.Start:HH:mm:ss}.";
-        SwapButton.IsEnabled = blocker is null;
+        SwapHint.Text = blocker ?? $"Ersetzt das Element um {row!.Item.Start:HH:mm:ss}.";
+        // The hint only matters once a song is chosen.
+        var requested = RequestSong.SelectedItem is not null;
+        SwapHint.Visibility = requested ? Visibility.Visible : Visibility.Collapsed;
+        SwapButton.IsEnabled = !_working && requested && blocker is null;
     }
 
     private void UpdateProgress()
     {
-        if (_controller.CurrentItem is not { } item)
+        if (_expectPlaying == false || _controller.CurrentItem is not { } item)
         {
             NowProgress.Value = 0;
             // Checked here, not in ShowCurrent: the engine starts waiting a moment after Start.
-            var waiting = _controller.WaitingUntil;
-            NowTitle.Text = waiting is { } at ? $"On air at {at:HH:mm:ss}" : "Nothing on air";
-            NowTime.Text = waiting is null ? " " : "Waiting for the planned start, so the news comes at :00 and :30.";
+            var waiting = _expectPlaying == false ? null : _controller.WaitingUntil;
+            NowTitle.Text = waiting is { } at ? $"Auf Sendung um {at:HH:mm:ss}" : "Nichts auf Sendung";
+            NowTime.Text = " ";
             return;
         }
 
         var elapsed = _controller.CurrentElapsed;
         NowProgress.Value = item.Duration.Ticks == 0 ? 0 : (double)elapsed.Ticks / item.Duration.Ticks;
-        NowTime.Text = $"{elapsed:m\\:ss} / {item.Duration:m\\:ss}  ·  planned {item.Start:HH:mm:ss}";
+        NowTime.Text = $"{elapsed:m\\:ss} / {item.Duration:m\\:ss}";
     }
 
     private void ShowMessage(InfoBarSeverity severity, string title, string text)
@@ -205,4 +339,6 @@ public partial class SchedulePage : Page
     private sealed record TimelineRow(int Index, ScheduleItem Item, bool IsCurrent);
 
     private sealed record SongOption(long Id, string Label);
+
+    private sealed record StartOption(DateTime Time, string Label);
 }
