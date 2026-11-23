@@ -75,21 +75,29 @@ public class ScheduleGeneratorTests
         }
     }
 
+    private static TimeSpan Total(IEnumerable<ScheduleItem> items, ScheduleItemKind kind) =>
+        TimeSpan.FromTicks(items.Where(i => i.Kind == kind).Sum(i => i.Duration.Ticks));
+
+    // The targets are met as closely as the songs allow; with this library that is within a few seconds per hour.
+    private static readonly TimeSpan TargetTolerance = TimeSpan.FromSeconds(15);
+
+    private static void AssertNear(TimeSpan expected, TimeSpan actual, string what) =>
+        Assert.True((actual - expected).Duration() <= TargetTolerance, $"{what}: {actual}, target {expected}");
+
     [Theory]
     [MemberData(nameof(Seeds))]
-    public void AdsAndModeratorStayWithinTwentyMinutesPerHour(int seed)
+    public void AdsAndModeratorMeetTheirTargetsPerHour(int seed)
     {
+        var options = new ScheduleOptions();
         var items = Generate(seed);
 
         for (var hour = 0; hour < 3; hour++)
         {
             var from = Start.AddHours(hour);
-            var filler = items
-                .Where(i => i.Start >= from && i.Start < from.AddHours(1))
-                .Where(i => i.Kind is ScheduleItemKind.Ad or ScheduleItemKind.Moderator)
-                .Aggregate(TimeSpan.Zero, (sum, i) => sum + i.Duration);
+            var inHour = items.Where(i => i.Start >= from && i.Start < from.AddHours(1)).ToList();
 
-            Assert.InRange(filler, TimeSpan.FromMinutes(2), TimeSpan.FromMinutes(20));
+            AssertNear(options.AdsPerHour, Total(inHour, ScheduleItemKind.Ad), $"ads in hour {hour}");
+            AssertNear(options.ModeratorPerHour, Total(inHour, ScheduleItemKind.Moderator), $"moderator in hour {hour}");
         }
     }
 
@@ -97,6 +105,7 @@ public class ScheduleGeneratorTests
     [MemberData(nameof(Seeds))]
     public void NoAdBlockIsLongerThanTheConfiguredMaximum(int seed)
     {
+        // Moderator talk separates the ad pieces, so ten one-minute ads per half hour never run together.
         var options = new ScheduleOptions { MaxAdBlock = TimeSpan.FromMinutes(1) };
         var block = TimeSpan.Zero;
 
@@ -133,13 +142,87 @@ public class ScheduleGeneratorTests
         Assert.Throws<ScheduleException>(() => generator.Generate(Start, 1, []));
     }
 
+    [Theory]
+    [MemberData(nameof(Seeds))]
+    public void Generate_FromAnOddTimeLeadsInWithMusicUpToTheFirstNews(int seed)
+    {
+        var start = Start.AddMinutes(37).AddSeconds(12);
+        var items = new ScheduleGenerator(new ScheduleOptions(), new Random(seed)).Generate(start, 1, Library);
+
+        Assert.Equal(start, items[0].Start);
+        for (var i = 1; i < items.Count; i++)
+            Assert.Equal(items[i - 1].End, items[i].Start);
+        var firstNews = items.ToList().FindIndex(i => i.Kind == ScheduleItemKind.News);
+        Assert.Equal(Start.AddHours(1), items[firstNews].Start);
+        Assert.Equal(ScheduleItemKind.Song, items[firstNews - 1].Kind);
+        Assert.Equal(Start.AddHours(2), items[^1].End);
+    }
+
+    [Fact]
+    public void Generate_FillsALeadInTooShortForASongWithModeratorTalk()
+    {
+        var start = Start.AddMinutes(28);
+        var items = new ScheduleGenerator(new ScheduleOptions(), new Random(1)).Generate(start, 1, Library);
+
+        Assert.Equal(ScheduleItemKind.Moderator, items[0].Kind);
+        Assert.Equal(TimeSpan.FromMinutes(2), items[0].Duration);
+        Assert.Equal(ScheduleItemKind.News, items[1].Kind);
+        Assert.Equal(Start.AddMinutes(90), items[^1].End);
+    }
+
+    [Fact]
+    public void Generate_LeavesNewsAdAndModeratorTitlesEmpty()
+    {
+        var items = Generate(1);
+
+        Assert.All(items, i => Assert.Equal(i.Kind != ScheduleItemKind.Song, i.Title.Length == 0));
+    }
+
+    [Theory]
+    [MemberData(nameof(Seeds))]
+    public void Generate_FollowsChangedTargets(int seed)
+    {
+        var options = new ScheduleOptions
+        {
+            NewsDuration = TimeSpan.FromMinutes(3),
+            AdsPerHour = TimeSpan.FromMinutes(4),
+            ModeratorPerHour = TimeSpan.FromMinutes(12),
+        };
+        var items = Generate(seed, hours: 2, options);
+
+        Assert.All(items.Where(i => i.Kind == ScheduleItemKind.News), n => Assert.Equal(TimeSpan.FromMinutes(3), n.Duration));
+        for (var hour = 0; hour < 2; hour++)
+        {
+            var inHour = items.Where(i => i.Start >= Start.AddHours(hour) && i.Start < Start.AddHours(hour + 1)).ToList();
+            AssertNear(options.AdsPerHour, Total(inHour, ScheduleItemKind.Ad), $"ads in hour {hour}");
+            AssertNear(options.ModeratorPerHour, Total(inHour, ScheduleItemKind.Moderator), $"moderator in hour {hour}");
+        }
+        Assert.Equal(Start.AddHours(2), items[^1].End);
+    }
+
+    [Fact]
+    public void Generate_FillsAnHourWithoutMusicWhenTheTargetsTakeAllOfIt()
+    {
+        var options = new ScheduleOptions
+        {
+            NewsDuration = TimeSpan.FromMinutes(5),
+            AdsPerHour = TimeSpan.FromMinutes(20),
+            ModeratorPerHour = TimeSpan.FromMinutes(30),
+        };
+        var items = Generate(1, hours: 1, options);
+
+        Assert.DoesNotContain(items, i => i.Kind == ScheduleItemKind.Song);
+        Assert.Equal(TimeSpan.FromMinutes(20), Total(items, ScheduleItemKind.Ad));
+        Assert.Equal(TimeSpan.FromMinutes(30), Total(items, ScheduleItemKind.Moderator));
+        Assert.Equal(Start.AddHours(1), items[^1].End);
+    }
+
     [Fact]
     public void Generate_RejectsInvalidInput()
     {
         var generator = new ScheduleGenerator(new ScheduleOptions(), new Random(1));
 
         Assert.Throws<ArgumentOutOfRangeException>(() => generator.Generate(Start, 0, Library));
-        Assert.Throws<ArgumentException>(() => generator.Generate(Start.AddMinutes(15), 1, Library));
         Assert.Throws<ArgumentException>(() =>
             new ScheduleGenerator(new ScheduleOptions { MaxAdBlock = TimeSpan.FromMinutes(20) }, new Random(1)).Generate(Start, 1, Library));
     }
@@ -171,7 +254,7 @@ public class ScheduleGeneratorTests
 
     [Theory]
     [MemberData(nameof(Seeds))]
-    public void Replace_KeepsFillerLimitsAndNoAdsBackToBack(int seed)
+    public void Replace_KeepsTheSlotOnTimeAndNoAdsBackToBack(int seed)
     {
         var plan = Generate(seed, hours: 1);
         // Every non-news item in the first half hour, so prefixes with filler are covered too.
@@ -182,9 +265,7 @@ public class ScheduleGeneratorTests
             try { swapped = Generator(seed).Replace(plan, index, Request, Library); }
             catch (ScheduleException) { continue; } // too little time left before the news
 
-            var filler = swapped.Where(i => i.Kind is ScheduleItemKind.Ad or ScheduleItemKind.Moderator)
-                .Aggregate(TimeSpan.Zero, (sum, i) => sum + i.Duration);
-            Assert.True(filler <= TimeSpan.FromMinutes(20), $"{filler} filler after swap at {index}");
+            Assert.Equal(plan[^1].End, swapped[^1].End);
             for (var i = 1; i < swapped.Count; i++)
                 Assert.False(swapped[i - 1].Kind == ScheduleItemKind.Ad && swapped[i].Kind == ScheduleItemKind.Ad,
                     $"Ads back to back at {swapped[i].Start:HH:mm:ss}");
@@ -199,7 +280,7 @@ public class ScheduleGeneratorTests
         var tooLong = Song(98, 25 * 60);
 
         var ex = Assert.Throws<ScheduleException>(() => Generator(1).Replace(plan, beforeNews, tooLong, Library));
-        Assert.Contains("does not fit", ex.Message);
+        Assert.Contains("passt nicht", ex.Message);
     }
 
     [Fact]
