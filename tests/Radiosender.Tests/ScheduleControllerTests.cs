@@ -29,7 +29,7 @@ public sealed class ScheduleControllerTests : IDisposable
     private ScheduleController Create(Func<TimeSpan, CancellationToken, Task>? delay = null) =>
         new(_songs,
             new ScheduleGenerator(new ScheduleOptions(), new Random(7)),
-            new PlaybackEngine(new InstantPlayer(), delay ?? ((_, _) => Task.CompletedTask)),
+            new PlaybackEngine(new InstantPlayer(), delay ?? ((_, _) => Task.CompletedTask), () => _now),
             () => _now);
 
     private void AddSongs()
@@ -101,6 +101,7 @@ public sealed class ScheduleControllerTests : IDisposable
         var first = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         controller.ItemStarted += (_, _) => first.TrySetResult();
 
+        _now = controller.Plan[0].Start; // on air at the planned start, so the held delay is the news
         controller.Start();
         await first.Task.WaitAsync(TimeSpan.FromSeconds(5));
         _now = _now.AddMinutes(2);
@@ -140,6 +141,7 @@ public sealed class ScheduleControllerTests : IDisposable
         controller.ItemStarted += (_, _) => first.TrySetResult();
         var request = _songs.GetAll()[3];
 
+        _now = controller.Plan[0].Start; // on air at the planned start, so the held delay is the news
         controller.Start();
         await first.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
@@ -159,4 +161,34 @@ public sealed class ScheduleControllerTests : IDisposable
 
         controller.CreatePlan(1);
         Assert.Throws<ScheduleException>(() => controller.Swap(1, 12345));
+    }
+
+    [Fact]
+    public async Task Start_WaitsForThePlannedStart()
+    {
+        AddSongs();
+        var hold = new TaskCompletionSource();
+        var controller = Create((_, token) => hold.Task.WaitAsync(token));
+        controller.CreatePlan(1);
+
+        controller.Start(); // at 14:37:12, the plan starts at 15:00
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        while (controller.WaitingUntil is null && DateTime.UtcNow < deadline) await Task.Delay(10);
+
+        Assert.Equal(new DateTime(2026, 11, 23, 15, 0, 0), controller.WaitingUntil);
+        Assert.True(controller.IsPlaying);
+        Assert.Null(controller.CurrentItem);
+        controller.Stop();
+        Assert.Null(controller.WaitingUntil);
+    }
+
+    [Fact]
+    public void Start_RejectsAPlanThatIsOver()
+    {
+        AddSongs();
+        var controller = Create();
+        controller.CreatePlan(1);
+        _now = controller.Plan[^1].Start;
+
+        Assert.Throws<InvalidOperationException>(() => controller.Start());
     }}

@@ -97,7 +97,14 @@ public partial class SchedulePage : Page
     private void OnStart(object sender, RoutedEventArgs e)
     {
         Message.IsOpen = false;
-        _controller.Start();
+        try
+        {
+            _controller.Start();
+        }
+        catch (InvalidOperationException ex)
+        {
+            ShowMessage(InfoBarSeverity.Warning, "Could not start", ex.Message);
+        }
         ShowCurrent();
     }
 
@@ -145,7 +152,7 @@ public partial class SchedulePage : Page
 
         NowKind.Content = item;
         NowKind.Visibility = item is null ? Visibility.Collapsed : Visibility.Visible;
-        NowTitle.Text = item?.Title ?? "Nothing on air";
+        if (item is not null) NowTitle.Text = item.Title;
 
         UpdateButtons();
         UpdateProgress();
@@ -175,7 +182,10 @@ public partial class SchedulePage : Page
         if (_controller.CurrentItem is not { } item)
         {
             NowProgress.Value = 0;
-            NowTime.Text = " ";
+            // Checked here, not in ShowCurrent: the engine starts waiting a moment after Start.
+            var waiting = _controller.WaitingUntil;
+            NowTitle.Text = waiting is { } at ? $"On air at {at:HH:mm:ss}" : "Nothing on air";
+            NowTime.Text = waiting is null ? " " : "Waiting for the planned start, so the news comes at :00 and :30.";
             return;
         }
 
