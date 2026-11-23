@@ -28,6 +28,9 @@
                 <ui:NavigationViewItem Content="Upload"
                                        Icon="{ui:SymbolIcon ArrowUpload24}"
                                        TargetPageType="{x:Type pages:UploadPage}" />
+                <ui:NavigationViewItem Content="Openverse"
+                                       Icon="{ui:SymbolIcon Search24}"
+                                       TargetPageType="{x:Type pages:OpenversePage}" />
             </ui:NavigationView.MenuItems>
         </ui:NavigationView>
     </Grid>
