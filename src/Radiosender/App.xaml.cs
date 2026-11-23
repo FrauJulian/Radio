@@ -36,6 +36,7 @@ public partial class App : Application
         });
         // Music providers: add a line here for each new IMusicProvider; the import page lists them all.
         services.AddSingleton<IMusicProvider, OpenverseProvider>();
+        services.AddSingleton<IMusicProvider, InternetArchiveProvider>();
         services.AddSingleton(provider => new TrackDownloader(provider.GetRequiredService<System.Net.Http.HttpClient>(), TrackDownloader.DefaultMusicFolder));
         services.AddSingleton<OnlineImportController>();
         services.AddSingleton(provider => new SongImportService(provider.GetRequiredService<SongRepository>(), SongImportService.DefaultMusicDirectory));
