@@ -12,7 +12,10 @@ WPF desktop app that plans and plays a radio program: random music from a SQLite
 ```powershell
 dotnet build Radiosender.slnx
 dotnet run --project src/Radiosender
+dotnet test Radiosender.slnx
 ```
+
+The app creates its SQLite database on first start at `%LOCALAPPDATA%\Radiosender\radiosender.db`.
 
 ## Structure
 
