@@ -14,6 +14,30 @@
         </Grid.RowDefinitions>
 
         <TabControl x:Name="Sources" Grid.Row="1">
+            <TabControl.Resources>
+                <!-- The theme barely marks the selected tab, so the header shows it itself: bold text and an accent line. -->
+                <Style TargetType="TabItem" BasedOn="{StaticResource {x:Type TabItem}}">
+                    <Setter Property="HeaderTemplate">
+                        <Setter.Value>
+                            <DataTemplate>
+                                <StackPanel>
+                                    <TextBlock x:Name="Label"
+                                               Text="{Binding}"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                    <Border x:Name="Mark" Height="3" Margin="0,4,0,0" CornerRadius="1.5" Background="Transparent" />
+                                </StackPanel>
+                                <DataTemplate.Triggers>
+                                    <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=TabItem}}" Value="True">
+                                        <Setter TargetName="Label" Property="FontWeight" Value="SemiBold" />
+                                        <Setter TargetName="Label" Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+                                        <Setter TargetName="Mark" Property="Background" Value="{DynamicResource AccentTextFillColorPrimaryBrush}" />
+                                    </DataTrigger>
+                                </DataTemplate.Triggers>
+                            </DataTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </TabControl.Resources>
             <!-- From computer -->
             <TabItem Header="Vom Computer">
                 <Grid Margin="0,12,0,0">
