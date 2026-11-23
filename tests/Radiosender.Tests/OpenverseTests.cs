@@ -53,6 +53,16 @@ public sealed class OpenverseTests : IDisposable
     private string[] MusicFiles() => Directory.Exists(MusicFolder) ? Directory.GetFiles(MusicFolder) : [];
 
     [Fact]
+    public void Track_DecodesHtmlEntitiesInTexts()
+    {
+        var track = new OpenverseTrack { Title = "Rock &amp; Roll", Creator = "Angus &amp; Friends", Attribution = "&quot;Rock&quot; by Angus" };
+
+        Assert.Equal("Rock & Roll", track.Title);
+        Assert.Equal("Angus & Friends", track.Creator);
+        Assert.Equal("\"Rock\" by Angus", track.Attribution);
+    }
+
+    [Fact]
     public async Task Search_ParsesResults()
     {
         Uri? requested = null;
@@ -87,7 +97,7 @@ public sealed class OpenverseTests : IDisposable
 
         var error = await Assert.ThrowsAsync<OpenverseException>(() => client.SearchAsync("x"));
 
-        Assert.Contains("rate limit", error.Message);
+        Assert.Contains("Limit erreicht", error.Message);
     }
 
     [Fact]
@@ -101,7 +111,7 @@ public sealed class OpenverseTests : IDisposable
 
         var error = await Assert.ThrowsAsync<OpenverseException>(() => client.SearchAsync("x"));
 
-        Assert.Contains("timed out", error.Message);
+        Assert.Contains("Zeitüberschreitung", error.Message);
     }
 
     [Fact]
@@ -228,7 +238,7 @@ public sealed class OpenverseTests : IDisposable
 
         var error = await Assert.ThrowsAsync<OpenverseException>(() => controller.ImportAsync(Track()));
 
-        Assert.Contains("already in the library", error.Message);
+        Assert.Contains("bereits in der Bibliothek", error.Message);
         Assert.Equal(1, downloads);
         Assert.Single(songs.GetAll());
         Assert.Single(MusicFiles());

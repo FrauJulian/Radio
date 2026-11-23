@@ -46,7 +46,7 @@ public class OpenverseClient(HttpClient http, string musicFolder)
         }
         catch (Exception e) when (e is not OpenverseException && !cancellationToken.IsCancellationRequested)
         {
-            throw Wrap(e, "Openverse search failed");
+            throw Wrap(e, "Openverse-Suche fehlgeschlagen");
         }
     }
 
@@ -58,7 +58,7 @@ public class OpenverseClient(HttpClient http, string musicFolder)
     public async Task<string> DownloadAsync(OpenverseTrack track, CancellationToken cancellationToken = default)
     {
         if (!Uri.TryCreate(track.Url, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps)
-            throw new OpenverseException("Only https downloads are allowed.");
+            throw new OpenverseException("Nur https-Downloads sind erlaubt.");
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(DownloadTimeout);
@@ -68,7 +68,7 @@ public class OpenverseClient(HttpClient http, string musicFolder)
             using var response = await http.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
             EnsureSuccess(response);
             if (response.Content.Headers.ContentLength > MaxDownloadBytes)
-                throw new OpenverseException("The file is larger than 50 MB.");
+                throw new OpenverseException("Die Datei ist größer als 50 MB.");
 
             Directory.CreateDirectory(musicFolder);
             await using var file = CreateUniqueFile(track, out path);
@@ -80,11 +80,11 @@ public class OpenverseClient(HttpClient http, string musicFolder)
             {
                 total += read;
                 if (total > MaxDownloadBytes)
-                    throw new OpenverseException("The file is larger than 50 MB.");
+                    throw new OpenverseException("Die Datei ist größer als 50 MB.");
                 await file.WriteAsync(buffer.AsMemory(0, read), timeout.Token);
             }
             if (total == 0)
-                throw new OpenverseException("The download was empty.");
+                throw new OpenverseException("Der Download war leer.");
             return path;
         }
         catch (Exception e)
@@ -94,7 +94,7 @@ public class OpenverseClient(HttpClient http, string musicFolder)
                 File.Delete(path);
             if (e is OpenverseException || cancellationToken.IsCancellationRequested)
                 throw;
-            throw Wrap(e, "Download failed");
+            throw Wrap(e, "Download fehlgeschlagen");
         }
     }
 
@@ -120,15 +120,15 @@ public class OpenverseClient(HttpClient http, string musicFolder)
     private static void EnsureSuccess(HttpResponseMessage response)
     {
         if (response.StatusCode == HttpStatusCode.TooManyRequests)
-            throw new OpenverseException("Openverse rate limit reached (anonymous: 20 requests per minute, 200 per day). Please try again later.");
+            throw new OpenverseException("Openverse-Limit erreicht (anonym: 20 Anfragen pro Minute, 200 pro Tag). Bitte später erneut versuchen.");
         if (!response.IsSuccessStatusCode)
-            throw new OpenverseException($"Openverse returned HTTP {(int)response.StatusCode}.");
+            throw new OpenverseException($"Openverse hat HTTP {(int)response.StatusCode} geliefert.");
     }
 
     private static OpenverseException Wrap(Exception e, string action) => e switch
     {
-        OperationCanceledException => new OpenverseException($"{action}: the request timed out.", e),
-        JsonException => new OpenverseException($"{action}: unexpected response.", e),
+        OperationCanceledException => new OpenverseException($"{action}: Zeitüberschreitung der Anfrage.", e),
+        JsonException => new OpenverseException($"{action}: unerwartete Antwort.", e),
         _ => new OpenverseException($"{action}: {e.Message}", e),
     };
 

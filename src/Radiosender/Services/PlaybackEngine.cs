@@ -27,6 +27,9 @@ public sealed class PlaybackEngine
     private CancellationTokenSource? _cts;
     private Task _run = Task.CompletedTask;
 
+    // Completed by ReplaceCurrent to wake the wait of the item on air; a new one per wait.
+    private TaskCompletionSource? _currentChanged;
+
     public PlaybackEngine() : this(MusicPlayer.Instance, Task.Delay, () => DateTime.Now)
     {
     }
@@ -84,6 +87,24 @@ public sealed class PlaybackEngine
             if (IsRunning && CurrentIndex >= fromIndex)
                 return false;
             Items = items;
+            return true;
+        }
+    }
+
+    /// <summary>
+    /// Switches to <paramref name="items"/> while the item at <paramref name="index"/> is on air and that item
+    /// itself changed: a news, ad or moderator item then runs for its new length, counted from when it started,
+    /// and a song ends at once. Items before <paramref name="index"/> must be unchanged. Returns <c>false</c>
+    /// if that item is not the one on air.
+    /// </summary>
+    public bool ReplaceCurrent(IReadOnlyList<ScheduleItem> items, int index)
+    {
+        lock (_lock)
+        {
+            if (!IsRunning || CurrentIndex != index || index >= items.Count)
+                return false;
+            Items = items;
+            _currentChanged?.TrySetResult();
             return true;
         }
     }
@@ -151,7 +172,7 @@ public sealed class PlaybackEngine
                 if (item.Kind == ScheduleItemKind.Song && item.Song is not null)
                     await PlaySongAsync(item, token);
                 else
-                    await _delay(item.Duration, token);
+                    await HoldAsync(i, token);
             }
 
             CurrentIndex = -1;
@@ -160,6 +181,33 @@ public sealed class PlaybackEngine
         catch (OperationCanceledException)
         {
             CurrentIndex = -1;
+        }
+    }
+
+    // Keeps a news, ad or moderator item on air for its length. ReplaceCurrent can change that length
+    // meanwhile; the wait then starts over with what is left.
+    private async Task HoldAsync(int index, CancellationToken token)
+    {
+        var startedAt = _now();
+        while (true)
+        {
+            TaskCompletionSource changed;
+            TimeSpan remaining;
+            lock (_lock)
+            {
+                changed = _currentChanged = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                remaining = Items[index].Duration - (_now() - startedAt);
+            }
+            if (remaining <= TimeSpan.Zero)
+                return;
+
+            using var wait = CancellationTokenSource.CreateLinkedTokenSource(token);
+            var delay = _delay(remaining, wait.Token);
+            var done = await Task.WhenAny(delay, changed.Task);
+            wait.Cancel();
+            token.ThrowIfCancellationRequested();
+            if (done == delay)
+                return;
         }
     }
 
@@ -181,13 +229,17 @@ public sealed class PlaybackEngine
                 return;
             }
 
+            TaskCompletionSource changed;
+            lock (_lock)
+                changed = _currentChanged = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
             var stuck = _delay(item.Duration + SongGrace, timeout.Token);
-            var done = await Task.WhenAny(finished.Task, stuck);
+            // changed: the user ended the song early; the finally block stops the player.
+            var done = await Task.WhenAny(finished.Task, stuck, changed.Task);
             timeout.Cancel();
             token.ThrowIfCancellationRequested();
             if (done == stuck)
-                ItemFailed?.Invoke(this, (item, new TimeoutException($"Song did not finish in time: {item.Title}")));
+                ItemFailed?.Invoke(this, (item, new TimeoutException($"Der Song wurde nicht rechtzeitig fertig: {item.Title}")));
         }
         finally
         {

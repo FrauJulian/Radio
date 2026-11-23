@@ -17,21 +17,26 @@
 
         <ui:TitleBar Grid.Row="0" Title="Radiosender" />
 
+        <!-- The navigation view wraps pages in its own scroll viewer, which gives a list unlimited height:
+             it then creates every row at once and each update takes seconds. The pages therefore set
+             ScrollViewer.CanContentScroll="False" and let their lists scroll themselves. -->
         <ui:NavigationView x:Name="RootNavigation" Grid.Row="1" IsBackButtonVisible="Collapsed">
             <ui:NavigationView.MenuItems>
-                <ui:NavigationViewItem Content="Home"
-                                       Icon="{ui:SymbolIcon Home24}"
-                                       TargetPageType="{x:Type pages:HomePage}" />
-                <ui:NavigationViewItem Content="Schedule"
+                <ui:NavigationViewItem Content="Sendeplan"
                                        Icon="{ui:SymbolIcon CalendarLtr24}"
                                        TargetPageType="{x:Type pages:SchedulePage}" />
-                <ui:NavigationViewItem Content="Library"
+                <ui:NavigationViewItem Content="Bibliothek"
                                        Icon="{ui:SymbolIcon MusicNote224}"
                                        TargetPageType="{x:Type pages:LibraryPage}" />
                 <ui:NavigationViewItem Content="Import"
                                        Icon="{ui:SymbolIcon ArrowDownload24}"
                                        TargetPageType="{x:Type pages:ImportPage}" />
             </ui:NavigationView.MenuItems>
+            <ui:NavigationView.FooterMenuItems>
+                <ui:NavigationViewItem Content="Einstellungen"
+                                       Icon="{ui:SymbolIcon Settings24}"
+                                       TargetPageType="{x:Type pages:SettingsPage}" />
+            </ui:NavigationView.FooterMenuItems>
         </ui:NavigationView>
     </Grid>
 </ui:FluentWindow>

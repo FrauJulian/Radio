@@ -3,20 +3,19 @@
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
       Title="Import"
+      Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+      ScrollViewer.CanContentScroll="False"
       Unloaded="OnUnloaded">
     <Grid Margin="24">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="3*" MinHeight="260" />
+            <RowDefinition Height="*" MinHeight="260" />
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="2*" MinHeight="120" />
         </Grid.RowDefinitions>
 
-        <ui:TextBlock Grid.Row="0" FontTypography="Title" Text="Import" />
-
-        <TabControl x:Name="Sources" Grid.Row="1" Margin="0,12,0,0">
+        <TabControl x:Name="Sources" Grid.Row="1">
             <!-- From computer -->
-            <TabItem Header="From computer">
+            <TabItem Header="Vom Computer">
                 <Grid Margin="0,12,0,0">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*" />
@@ -26,7 +25,7 @@
                     <Grid x:Name="DropZone"
                           Background="Transparent"
                           AllowDrop="True"
-                          AutomationProperties.Name="Drop zone for MP3 and WAV files"
+                          AutomationProperties.Name="Ablagebereich für MP3- und WAV-Dateien"
                           DragEnter="OnDragOver"
                           DragOver="OnDragOver"
                           DragLeave="OnDragLeave"
@@ -36,21 +35,17 @@
                                    RadiusY="8"
                                    StrokeThickness="2"
                                    StrokeDashArray="4 3"
-                                   Stroke="{DynamicResource TextFillColorTertiaryBrush}" />
+                                   Stroke="{DynamicResource ControlStrongStrokeColorDefaultBrush}" />
                         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                             <ui:SymbolIcon HorizontalAlignment="Center" FontSize="40" Symbol="ArrowUpload24" />
-                            <ui:TextBlock Margin="0,8,0,0"
+                            <ui:TextBlock Margin="0,8,0,12"
                                           HorizontalAlignment="Center"
                                           FontTypography="BodyStrong"
-                                          Text="Drop MP3 or WAV files here" />
-                            <ui:TextBlock Margin="0,4,0,12"
-                                          HorizontalAlignment="Center"
-                                          Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                          Text="You can add several files at once." />
+                                          Text="MP3- oder WAV-Dateien hier ablegen" />
                             <ui:Button x:Name="ChooseFilesButton"
                                        HorizontalAlignment="Center"
                                        Appearance="Primary"
-                                       Content="Choose files..."
+                                       Content="Dateien auswählen..."
                                        Icon="{ui:SymbolIcon FolderOpen24}"
                                        Click="OnChooseFiles" />
                         </StackPanel>
@@ -60,7 +55,7 @@
                         <ui:TextBlock x:Name="UploadProgressText" />
                         <ProgressBar x:Name="UploadProgress"
                                      Margin="0,6,0,0"
-                                     AutomationProperties.Name="Upload progress" />
+                                     AutomationProperties.Name="Import-Fortschritt" />
                     </StackPanel>
                 </Grid>
             </TabItem>
@@ -81,14 +76,14 @@
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <ui:TextBox x:Name="QueryBox"
-                                    PlaceholderText="Search free audio, for example &quot;jazz piano&quot;"
-                                    AutomationProperties.Name="Search term"
+                                    PlaceholderText="Freie Musik suchen, zum Beispiel &quot;jazz piano&quot;"
+                                    AutomationProperties.Name="Suchbegriff"
                                     KeyDown="OnQueryKeyDown" />
                         <ui:Button x:Name="SearchButton"
                                    Grid.Column="1"
                                    Margin="8,0,0,0"
                                    Appearance="Primary"
-                                   Content="Search"
+                                   Content="Suchen"
                                    Icon="{ui:SymbolIcon Search24}"
                                    Click="OnSearch" />
                     </Grid>
@@ -98,34 +93,25 @@
                     <ui:ListView x:Name="Results"
                                  Grid.Row="2"
                                  Margin="0,12,0,0"
-                                 SelectionMode="Single"
-                                 AutomationProperties.Name="Search results"
+                                 SelectionMode="Extended"
+                                 AutomationProperties.Name="Suchergebnisse"
                                  SelectionChanged="OnSelectionChanged"
                                  MouseDoubleClick="OnResultDoubleClick">
                         <ui:ListView.View>
                             <ui:GridView>
-                                <ui:GridViewColumn Width="300" Header="Title" DisplayMemberBinding="{Binding Track.Title}" />
-                                <ui:GridViewColumn Width="180" Header="Creator" DisplayMemberBinding="{Binding Track.Creator}" />
-                                <ui:GridViewColumn Width="80" Header="Duration" DisplayMemberBinding="{Binding Track.DurationText}" />
-                                <ui:GridViewColumn Width="130" Header="License" DisplayMemberBinding="{Binding Track.LicenseName}" />
-                                <ui:GridViewColumn Width="150" Header="Status">
-                                    <ui:GridViewColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <ui:TextBlock Text="{Binding Status}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                        </DataTemplate>
-                                    </ui:GridViewColumn.CellTemplate>
-                                </ui:GridViewColumn>
+                                <ui:GridViewColumn Width="300" Header="Titel" DisplayMemberBinding="{Binding Track.Title}" />
+                                <ui:GridViewColumn Width="180" Header="Urheber" DisplayMemberBinding="{Binding Track.Creator}" />
+                                <ui:GridViewColumn Width="80" Header="Dauer" DisplayMemberBinding="{Binding Track.DurationText}" />
+                                <ui:GridViewColumn Width="130" Header="Lizenz" DisplayMemberBinding="{Binding Track.LicenseName}" />
                             </ui:GridView>
                         </ui:ListView.View>
                     </ui:ListView>
 
                     <StackPanel Grid.Row="3" Margin="0,12,0,0" Orientation="Horizontal">
-                        <ui:Button x:Name="PreviewButton" Content="Preview" Icon="{ui:SymbolIcon Play24}"
+                        <ui:Button x:Name="PreviewButton" MinWidth="110" Content="Vorhören" Icon="{ui:SymbolIcon Play24}"
                                    IsEnabled="False" Click="OnPreview" />
-                        <ui:Button x:Name="StopButton" Margin="8,0,0,0" Content="Stop" Icon="{ui:SymbolIcon Stop24}"
-                                   IsEnabled="False" Click="OnStop" />
-                        <ui:Button x:Name="ImportButton" Margin="8,0,0,0" Appearance="Primary"
-                                   Content="Import to library" Icon="{ui:SymbolIcon ArrowDownload24}"
+                        <ui:Button x:Name="ImportButton" ToolTipService.ShowOnDisabled="True" Margin="8,0,0,0" Appearance="Primary"
+                                   Content="In Bibliothek importieren" Icon="{ui:SymbolIcon ArrowDownload24}"
                                    IsEnabled="False" Click="OnImport" />
                         <ui:ProgressRing x:Name="Busy"
                                          Width="20"
@@ -142,57 +128,51 @@
             </TabItem>
         </TabControl>
 
-        <!-- Added in this session, from both sources -->
-        <Grid Grid.Row="2" Margin="0,16,0,0">
-            <ui:TextBlock VerticalAlignment="Center" FontTypography="Subtitle" Text="Added in this session" />
+        <!-- Results of this session from both sources; hidden until something was imported. -->
+        <Grid x:Name="SessionPanel" Grid.Row="2" Margin="0,16,0,0" Visibility="Collapsed">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <ui:TextBlock VerticalAlignment="Center" FontTypography="BodyStrong" Text="Importiert" />
             <ui:Button HorizontalAlignment="Right"
                        Appearance="Transparent"
-                       Content="Open library"
+                       Content="Bibliothek öffnen"
                        Icon="{ui:SymbolIcon MusicNote224}"
                        Click="OnOpenLibrary" />
+            <ui:ListView x:Name="Session"
+                         Grid.Row="1"
+                         MaxHeight="200"
+                         Margin="0,8,0,0"
+                         AutomationProperties.Name="In dieser Sitzung importierte Songs">
+                <ui:ListView.View>
+                    <ui:GridView>
+                        <ui:GridViewColumn Width="160" Header="Status">
+                            <ui:GridViewColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <ui:SymbolIcon x:Name="Icon"
+                                                       Symbol="CheckmarkCircle24"
+                                                       Filled="True"
+                                                       Foreground="{DynamicResource SystemFillColorSuccessBrush}" />
+                                        <ui:TextBlock x:Name="Label" Margin="6,0,0,0" Text="Hinzugefügt" />
+                                    </StackPanel>
+                                    <DataTemplate.Triggers>
+                                        <DataTrigger Binding="{Binding Success}" Value="False">
+                                            <Setter TargetName="Icon" Property="Symbol" Value="ErrorCircle24" />
+                                            <Setter TargetName="Icon" Property="Foreground" Value="{DynamicResource SystemFillColorCriticalBrush}" />
+                                            <Setter TargetName="Label" Property="Text" Value="Fehlgeschlagen" />
+                                        </DataTrigger>
+                                    </DataTemplate.Triggers>
+                                </DataTemplate>
+                            </ui:GridViewColumn.CellTemplate>
+                        </ui:GridViewColumn>
+                        <ui:GridViewColumn Width="240" Header="Titel" DisplayMemberBinding="{Binding Title}" />
+                        <ui:GridViewColumn Width="160" Header="Interpret" DisplayMemberBinding="{Binding Artist}" />
+                        <ui:GridViewColumn Width="320" Header="Details" DisplayMemberBinding="{Binding Details}" />
+                    </ui:GridView>
+                </ui:ListView.View>
+            </ui:ListView>
         </Grid>
-
-        <ui:ListView x:Name="Session"
-                     Grid.Row="3"
-                     Margin="0,8,0,0"
-                     AutomationProperties.Name="Songs added in this session">
-            <ui:ListView.View>
-                <ui:GridView>
-                    <ui:GridViewColumn Width="110" Header="Status">
-                        <ui:GridViewColumn.CellTemplate>
-                            <DataTemplate>
-                                <StackPanel Orientation="Horizontal">
-                                    <ui:SymbolIcon x:Name="Icon"
-                                                   Symbol="CheckmarkCircle24"
-                                                   Filled="True"
-                                                   Foreground="{DynamicResource SystemFillColorSuccessBrush}" />
-                                    <ui:TextBlock x:Name="Label" Margin="6,0,0,0" Text="Added" />
-                                </StackPanel>
-                                <DataTemplate.Triggers>
-                                    <DataTrigger Binding="{Binding Success}" Value="False">
-                                        <Setter TargetName="Icon" Property="Symbol" Value="ErrorCircle24" />
-                                        <Setter TargetName="Icon" Property="Foreground" Value="{DynamicResource SystemFillColorCriticalBrush}" />
-                                        <Setter TargetName="Label" Property="Text" Value="Failed" />
-                                    </DataTrigger>
-                                </DataTemplate.Triggers>
-                            </DataTemplate>
-                        </ui:GridViewColumn.CellTemplate>
-                    </ui:GridViewColumn>
-                    <ui:GridViewColumn Width="240" Header="Title" DisplayMemberBinding="{Binding Title}" />
-                    <ui:GridViewColumn Width="160" Header="Artist" DisplayMemberBinding="{Binding Artist}" />
-                    <ui:GridViewColumn Width="80" Header="Duration" DisplayMemberBinding="{Binding Duration}" />
-                    <ui:GridViewColumn Width="100" Header="Source" DisplayMemberBinding="{Binding Source}" />
-                    <ui:GridViewColumn Width="320" Header="Details" DisplayMemberBinding="{Binding Details}" />
-                </ui:GridView>
-            </ui:ListView.View>
-        </ui:ListView>
-
-        <ui:TextBlock x:Name="SessionEmpty"
-                      Grid.Row="3"
-                      Margin="0,32,0,0"
-                      HorizontalAlignment="Center"
-                      VerticalAlignment="Top"
-                      Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                      Text="Songs you import appear here." />
     </Grid>
 </Page>

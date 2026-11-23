@@ -1,0 +1,136 @@
+<Page x:Class="Radiosender.Views.Pages.SettingsPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      Title="Einstellungen"
+      Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+      Loaded="OnLoaded">
+    <Page.Resources>
+        <Style x:Key="Card" TargetType="Border">
+            <Setter Property="Margin" Value="0,0,0,12" />
+            <Setter Property="Padding" Value="16" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
+            <Setter Property="Background" Value="{DynamicResource CardBackgroundFillColorDefaultBrush}" />
+        </Style>
+        <Style x:Key="Seconds" TargetType="ui:NumberBox" BasedOn="{StaticResource {x:Type ui:NumberBox}}">
+            <Setter Property="Width" Value="130" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
+            <Setter Property="Minimum" Value="5" />
+            <Setter Property="Maximum" Value="300" />
+            <Setter Property="SmallChange" Value="5" />
+            <Setter Property="MaxDecimalPlaces" Value="0" />
+            <Setter Property="ClearButtonEnabled" Value="False" />
+        </Style>
+        <Style x:Key="Minutes" TargetType="ui:NumberBox" BasedOn="{StaticResource {x:Type ui:NumberBox}}">
+            <Setter Property="Width" Value="130" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
+            <Setter Property="Minimum" Value="0" />
+            <Setter Property="Maximum" Value="60" />
+            <Setter Property="SmallChange" Value="1" />
+            <Setter Property="MaxDecimalPlaces" Value="0" />
+            <Setter Property="ClearButtonEnabled" Value="False" />
+        </Style>
+    </Page.Resources>
+
+    <StackPanel MaxWidth="640" Margin="24" HorizontalAlignment="Left">
+        <ui:InfoBar x:Name="Message" Margin="0,0,0,12" IsClosable="True" IsOpen="False" />
+
+        <!-- Speaking alerts: one block per kind -->
+        <Border Style="{StaticResource Card}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="220" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <ui:ToggleSwitch x:Name="NewsAlertSwitch" Grid.ColumnSpan="2" Content="Hinweis vor Nachrichten" />
+                <Label Grid.Row="1" Margin="0,12,0,0" VerticalAlignment="Center"
+                       Content="Sekunden vor dem Start"
+                       Target="{Binding ElementName=NewsSecondsBox}"
+                       IsEnabled="{Binding IsChecked, ElementName=NewsAlertSwitch}" />
+                <ui:NumberBox x:Name="NewsSecondsBox" Grid.Row="1" Grid.Column="1" Margin="0,12,0,0"
+                              Style="{StaticResource Seconds}"
+                              AutomationProperties.Name="Sekunden vor Nachrichten"
+                              IsEnabled="{Binding IsChecked, ElementName=NewsAlertSwitch}" />
+                <CheckBox x:Name="NewsSoundBox" Grid.Row="2" Grid.ColumnSpan="2" Margin="0,8,0,0"
+                          Content="Bing-Ton abspielen"
+                          IsEnabled="{Binding IsChecked, ElementName=NewsAlertSwitch}" />
+            </Grid>
+        </Border>
+
+        <Border Style="{StaticResource Card}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="220" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <ui:ToggleSwitch x:Name="ModeratorAlertSwitch" Grid.ColumnSpan="2" Content="Hinweis vor Moderation" />
+                <Label Grid.Row="1" Margin="0,12,0,0" VerticalAlignment="Center"
+                       Content="Sekunden vor dem Start"
+                       Target="{Binding ElementName=ModeratorSecondsBox}"
+                       IsEnabled="{Binding IsChecked, ElementName=ModeratorAlertSwitch}" />
+                <ui:NumberBox x:Name="ModeratorSecondsBox" Grid.Row="1" Grid.Column="1" Margin="0,12,0,0"
+                              Style="{StaticResource Seconds}"
+                              AutomationProperties.Name="Sekunden vor Moderation"
+                              IsEnabled="{Binding IsChecked, ElementName=ModeratorAlertSwitch}" />
+                <CheckBox x:Name="ModeratorSoundBox" Grid.Row="2" Grid.ColumnSpan="2" Margin="0,8,0,0"
+                          Content="Bing-Ton abspielen"
+                          IsEnabled="{Binding IsChecked, ElementName=ModeratorAlertSwitch}" />
+            </Grid>
+        </Border>
+
+        <!-- Minutes per hour -->
+        <Border Style="{StaticResource Card}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="220" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <ui:TextBlock Grid.ColumnSpan="2" FontTypography="BodyStrong" Text="Minuten pro Stunde" />
+                <Label Grid.Row="1" Margin="0,12,0,0" VerticalAlignment="Center"
+                       Content="Nachrichten" Target="{Binding ElementName=NewsMinutesBox}" />
+                <ui:NumberBox x:Name="NewsMinutesBox" Grid.Row="1" Grid.Column="1" Margin="0,12,0,0"
+                              Style="{StaticResource Minutes}" Minimum="2"
+                              AutomationProperties.Name="Nachrichten-Minuten pro Stunde" />
+                <Label Grid.Row="2" Margin="0,8,0,0" VerticalAlignment="Center"
+                       Content="Moderation" Target="{Binding ElementName=ModeratorMinutesBox}" />
+                <ui:NumberBox x:Name="ModeratorMinutesBox" Grid.Row="2" Grid.Column="1" Margin="0,8,0,0"
+                              Style="{StaticResource Minutes}"
+                              AutomationProperties.Name="Moderations-Minuten pro Stunde" />
+                <Label Grid.Row="3" Margin="0,8,0,0" VerticalAlignment="Center"
+                       Content="Werbung" Target="{Binding ElementName=AdMinutesBox}" />
+                <ui:NumberBox x:Name="AdMinutesBox" Grid.Row="3" Grid.Column="1" Margin="0,8,0,0"
+                              Style="{StaticResource Minutes}"
+                              AutomationProperties.Name="Werbe-Minuten pro Stunde" />
+                <ui:TextBlock Grid.Row="4" Grid.ColumnSpan="2" Margin="0,12,0,0" TextWrapping="Wrap"
+                              Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                              Text="Sollwerte, zusammen höchstens 60 Minuten. Gilt für den nächsten Plan." />
+            </Grid>
+        </Border>
+
+        <StackPanel Margin="0,4,0,0" Orientation="Horizontal">
+            <ui:Button Appearance="Primary" MinWidth="110" Content="Speichern" Icon="{ui:SymbolIcon Save24}" Click="OnSave" />
+            <ui:Button Margin="8,0,0,0" MinWidth="110" Content="Zurücksetzen" Icon="{ui:SymbolIcon ArrowReset24}"
+                       ToolTip="Setzt die Standardwerte ins Formular. Mit Speichern übernehmen."
+                       Click="OnReset" />
+        </StackPanel>
+    </StackPanel>
+</Page>
