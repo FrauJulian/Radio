@@ -63,7 +63,7 @@ The app follows the MVC pattern and uses [WPF UI](https://github.com/lepoco/wpfu
 
 | Layer | Folder | Content |
 | --- | --- | --- |
-| Model | `src/Radiosender/Models` | `Song`, `ScheduleItem`, `AdSpot`, `ModeratorSegment`, `OpenverseTrack` |
+| Model | `src/Radiosender/Models` | `Song`, `ScheduleItem`, `OpenverseTrack` |
 | View | `src/Radiosender/Views` | `MainWindow` with navigation, one page per feature, `SongEditWindow` |
 | Controller | `src/Radiosender/Controllers` | `LibraryController`, `UploadController`, `OpenverseController`, `ScheduleController` |
 | Services | `src/Radiosender/Services` | database, audio, schedule logic and API access used by the controllers |
