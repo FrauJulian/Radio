@@ -22,6 +22,9 @@
                 <ui:NavigationViewItem Content="Home"
                                        Icon="{ui:SymbolIcon Home24}"
                                        TargetPageType="{x:Type pages:HomePage}" />
+                <ui:NavigationViewItem Content="Schedule"
+                                       Icon="{ui:SymbolIcon CalendarLtr24}"
+                                       TargetPageType="{x:Type pages:SchedulePage}" />
                 <ui:NavigationViewItem Content="Library"
                                        Icon="{ui:SymbolIcon MusicNote224}"
                                        TargetPageType="{x:Type pages:LibraryPage}" />
