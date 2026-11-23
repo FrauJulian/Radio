@@ -11,7 +11,7 @@ namespace Radiosender.Services;
 /// never on the WPF UI thread. WPF callers must marshal with <c>Dispatcher.Invoke</c> or
 /// <c>Dispatcher.BeginInvoke</c> before touching UI elements.
 /// </remarks>
-public sealed class MusicPlayer
+public sealed class MusicPlayer : IAudioPlayer
 {
     private static readonly Lazy<MusicPlayer> LazyInstance = new(() => new MusicPlayer());
 
