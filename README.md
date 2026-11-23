@@ -29,7 +29,7 @@ On first start the app creates its data under `%LOCALAPPDATA%\Radiosender`:
 4. **Schedule**:
    1. Enter the number of hours (1 to 24) and click **Create schedule**. The plan starts at the next full hour.
    2. The timeline shows every item with start time, type (song, news, ad, moderator), title and duration.
-   3. **Start** plays the plan from the first item, **Stop** ends it. The now-playing card shows the current item, its progress and the volume.
+   3. **Start** puts the plan on air on the real clock. Before the planned start the now-playing card shows when the broadcast begins; if the plan has already begun, playback joins at the next item. **Stop** ends it. The now-playing card shows the current item, its progress and the volume.
    4. **Song request**: choose a song, select an upcoming row in the timeline and click **Play instead of selected**. This also works while the broadcast is running.
 
 News, ads and moderator talk are placeholders: the app shows them in the timeline and keeps silent for their duration.
@@ -42,6 +42,8 @@ News, ads and moderator talk are placeholders: the app shows them in the timelin
 - The rest of the slot is random songs plus 2 to 10 minutes of ads and moderator talk. Ten minutes per half hour keeps every hour at 20 minutes or less.
 - Ads and moderator items alternate, and one ad item lasts at most 5 minutes, so there is never a long block of ads.
 - The filler sits between the songs and the slot always ends with a song, so that song ends exactly when the next news starts. Songs are never cut. When the filler does not add up, the last placeholder is shortened.
+
+During playback `PlaybackEngine` starts every item at its planned time. If the previous item ended early, it waits; if it ran late, the next item starts right after it and is never cut. The news therefore comes at the real :00 and :30.
 
 A song request (`ScheduleGenerator.Replace`) puts the song at the selected position and rebuilds only the rest of that half hour with the same rules. Earlier items and later half hours stay as they are, so the next news keeps its time. News items cannot be replaced, and a song that is longer than the time left before the next news is rejected.
 
@@ -80,7 +82,7 @@ For each downloaded track the app stores the license (for example `CC BY 4.0`) a
 | Requirement | Where | Status |
 | --- | --- | --- |
 | Plays random music for X hours; only full hours, entered by the user | Schedule page, hours 1 to 24; `ScheduleGenerator.PickSongs` | Done |
-| 2 × 5 minutes of news per hour, at :00 and :30 | `ScheduleGenerator.Generate` | Done in the plan, see the limitation below |
+| 2 × 5 minutes of news per hour, at :00 and :30 | `ScheduleGenerator.Generate`; `PlaybackEngine` waits for each planned start | Done |
 | News comes after a song, no song is cut | Slot ends with a song that ends at the news start; tests in `ScheduleGeneratorTests` | Done |
 | Up to 20 minutes of ads and moderator talk per hour | At most 10 minutes per half hour | Done |
 | Ads never 20 minutes in a row | Ads alternate with moderator items, one ad item lasts at most 5 minutes | Done |
@@ -97,8 +99,8 @@ For each downloaded track the app stores the license (for example `CC BY 4.0`) a
 
 ## Known limitations
 
-- **Real clock**: the plan starts at the next full hour, but **Start** begins with the first item right away. The news therefore lands on the real :00 and :30 only when the broadcast is started at a full hour. The timeline and the now-playing card always show the planned times.
-- **Drift**: placeholders are timed with a timer and songs by the audio device, so the real end can drift by a few seconds over long runs.
-- **Skipped songs**: a song that cannot be played (missing file, unsupported format) is skipped with a warning, so later items start earlier than planned.
+- **Waiting for the start**: a new plan starts at the next full hour, so after **Start** the app can stay silent for up to an hour.
+- **Late items**: if a song plays longer than its stored duration, the following items start late by the same amount. Nothing is cut to catch up; the delay only disappears when a later item ends early.
+- **Skipped songs**: a song that cannot be played (missing file, unsupported format) is skipped with a warning, and the station stays silent until the next planned item.
 - **Deleting a song** removes it from the library but keeps its file in the `Music` folder.
 - **Placeholders** have no audio. The last filler of a half hour can be very short (for example 2 seconds) because it is cut to fit.

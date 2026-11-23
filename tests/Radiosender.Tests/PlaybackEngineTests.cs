@@ -65,7 +65,7 @@ public class PlaybackEngineTests
 
     private static (PlaybackEngine Engine, List<int> Started, TaskCompletionSource Finished) Create(FakePlayer player, FakeClock clock)
     {
-        var engine = new PlaybackEngine(player, clock.Delay);
+        var engine = new PlaybackEngine(player, clock.Delay, () => Start);
         var started = new List<int>();
         var finished = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         engine.ItemStarted += (_, e) => { lock (started) started.Add(e.Index); };
@@ -172,7 +172,7 @@ public class PlaybackEngineTests
             if (first) { first = false; return news.Task.WaitAsync(t); }
             return d > TimeSpan.FromSeconds(180) ? Task.Delay(Timeout.Infinite, t) : Task.CompletedTask;
         }
-        var engine = new PlaybackEngine(player, Delay);
+        var engine = new PlaybackEngine(player, Delay, () => Start);
         var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var finished = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         engine.ItemStarted += (_, _) => started.TrySetResult();
@@ -188,4 +188,32 @@ public class PlaybackEngineTests
         await finished.Task.WaitAsync(Wait);
 
         Assert.Equal(["request.mp3", "b.mp3"], player.Played);
+    }
+
+    [Fact]
+    public async Task Start_SkipsItemsThatShouldHaveStartedEarlierAndWaitsForTheNext()
+    {
+        var player = new FakePlayer();
+        var clock = new FakeClock();
+        IReadOnlyList<ScheduleItem> timed =
+        [
+            Plan[0],
+            Plan[1] with { Start = Start.AddSeconds(300) },
+            Plan[2] with { Start = Start.AddSeconds(500) },
+            Plan[3] with { Start = Start.AddSeconds(545) },
+            Plan[4] with { Start = Start.AddSeconds(605) },
+        ];
+        var engine = new PlaybackEngine(player, clock.Delay, () => Start.AddSeconds(360));
+        var started = new List<int>();
+        var finished = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        engine.ItemStarted += (_, e) => started.Add(e.Index);
+        engine.Finished += (_, _) => finished.TrySetResult();
+
+        engine.Start(timed);
+        await finished.Task.WaitAsync(Wait);
+
+        // News and song a already began at 14:06; the ad waits until its planned 14:08:20.
+        Assert.Equal([2, 3, 4], started);
+        Assert.Equal(["b.mp3"], player.Played);
+        Assert.Equal(TimeSpan.FromSeconds(140), clock.Delays.First());
     }}

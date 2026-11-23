@@ -3,8 +3,9 @@ using Radiosender.Models;
 namespace Radiosender.Services;
 
 /// <summary>
-/// Runs a generated schedule from start to end: songs play through the audio player, news, ads and
-/// moderator placeholders are held for their duration.
+/// Runs a generated schedule on the real clock: each item starts at its planned time, or right after the
+/// previous item if that one ran late. Songs play through the audio player, news, ads and moderator
+/// placeholders are held for their duration. Songs are never cut.
 /// </summary>
 /// <remarks>
 /// Events are raised on the engine's thread-pool thread. WPF callers must marshal with
@@ -16,20 +17,25 @@ public sealed class PlaybackEngine
     // Extra time before a song counts as stuck, e.g. after an audio device error that never raises TrackFinished.
     private static readonly TimeSpan SongGrace = TimeSpan.FromSeconds(10);
 
+    // An item that started at most this long ago still plays when the broadcast starts, e.g. a click right after 15:00.
+    private static readonly TimeSpan LateStart = TimeSpan.FromSeconds(5);
+
     private readonly IAudioPlayer _player;
     private readonly Func<TimeSpan, CancellationToken, Task> _delay;
+    private readonly Func<DateTime> _now;
     private readonly Lock _lock = new();
     private CancellationTokenSource? _cts;
     private Task _run = Task.CompletedTask;
 
-    public PlaybackEngine() : this(MusicPlayer.Instance, Task.Delay)
+    public PlaybackEngine() : this(MusicPlayer.Instance, Task.Delay, () => DateTime.Now)
     {
     }
 
-    public PlaybackEngine(IAudioPlayer player, Func<TimeSpan, CancellationToken, Task> delay)
+    public PlaybackEngine(IAudioPlayer player, Func<TimeSpan, CancellationToken, Task> delay, Func<DateTime> now)
     {
         _player = player;
         _delay = delay;
+        _now = now;
     }
 
     /// <summary>Raised when an item starts, with its index in <see cref="Items"/>.</summary>
@@ -48,7 +54,13 @@ public sealed class PlaybackEngine
 
     public bool IsRunning => !_run.IsCompleted;
 
-    /// <summary>Stops any running schedule and starts <paramref name="items"/> from the first item.</summary>
+    /// <summary>Planned start the engine waits for, or <c>null</c> when it is not waiting.</summary>
+    public DateTime? WaitingUntil { get; private set; }
+
+    /// <summary>
+    /// Stops any running schedule and starts <paramref name="items"/> on the clock. Items that should have
+    /// started earlier are skipped; before the first planned start the engine waits.
+    /// </summary>
     public void Start(IReadOnlyList<ScheduleItem> items)
     {
         Stop();
@@ -105,10 +117,28 @@ public sealed class PlaybackEngine
     {
         try
         {
+            var skipBefore = _now() - LateStart;
             for (var i = 0; ; i++)
             {
                 token.ThrowIfCancellationRequested();
                 ScheduleItem item;
+                lock (_lock)
+                {
+                    if (i >= Items.Count) break;
+                    item = Items[i];
+                }
+                if (item.Start < skipBefore)
+                    continue;
+
+                // Early items wait for their slot, so the news hits :00 and :30; late items start right away.
+                var wait = item.Start - _now();
+                if (wait > TimeSpan.Zero)
+                {
+                    WaitingUntil = item.Start;
+                    try { await _delay(wait, token); }
+                    finally { WaitingUntil = null; }
+                }
+
                 // Under the lock so ReplaceUpcoming cannot swap the item that is about to start.
                 lock (_lock)
                 {

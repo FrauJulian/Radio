@@ -72,11 +72,19 @@ public class ScheduleController
         return Plan;
     }
 
-    /// <summary>Plays the plan from its first item; the planned times are the on-air clock, playback starts right away.</summary>
+    /// <summary>Planned start of the next item while the broadcast waits for it, otherwise <c>null</c>.</summary>
+    public DateTime? WaitingUntil => CurrentItem is null ? _engine.WaitingUntil : null;
+
+    /// <summary>
+    /// Goes on air with the plan on the real clock: waits for the planned start, or joins at the next item
+    /// when the plan has already begun.
+    /// </summary>
     public void Start()
     {
         if (Plan.Count == 0)
             throw new InvalidOperationException("Create a schedule first.");
+        if (Plan[^1].Start <= _now())
+            throw new InvalidOperationException("This schedule is already over. Create a new one.");
         _engine.Start(Plan);
     }
 
