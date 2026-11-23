@@ -22,6 +22,9 @@
                 <ui:NavigationViewItem Content="Home"
                                        Icon="{ui:SymbolIcon Home24}"
                                        TargetPageType="{x:Type pages:HomePage}" />
+                <ui:NavigationViewItem Content="Openverse"
+                                       Icon="{ui:SymbolIcon Search24}"
+                                       TargetPageType="{x:Type pages:OpenversePage}" />
             </ui:NavigationView.MenuItems>
         </ui:NavigationView>
     </Grid>
