@@ -27,7 +27,17 @@ public partial class LibraryPage : Page
     {
         var songs = _controller.Search(SearchBox.Text);
         SongList.ItemsSource = songs;
+        GridColumns.Fit(SongList);
+        EmptyText.Text = string.IsNullOrWhiteSpace(SearchBox.Text)
+            ? "Noch keine Songs. Musik auf der Seite Import hinzufügen."
+            : "Kein Song passt zur Suche.";
         EmptyText.Visibility = songs.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void OnListKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key == System.Windows.Input.Key.Enter) OnEdit(sender, e);
+        else if (e.Key == System.Windows.Input.Key.Delete) OnDelete(sender, e);
     }
 
     private void OnEdit(object sender, RoutedEventArgs e)
@@ -48,10 +58,10 @@ public partial class LibraryPage : Page
 
         var result = await new MessageBox
         {
-            Title = "Delete song",
-            Content = $"Delete \"{song.Title}\" by {song.Artist} from the library?",
-            PrimaryButtonText = "Delete",
-            CloseButtonText = "Cancel",
+            Title = "Song löschen",
+            Content = $"\"{song.Title}\" von {song.Artist} aus der Bibliothek löschen?",
+            PrimaryButtonText = "Löschen",
+            CloseButtonText = "Abbrechen",
         }.ShowDialogAsync();
 
         if (result != Wpf.Ui.Controls.MessageBoxResult.Primary)

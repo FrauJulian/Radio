@@ -2,7 +2,9 @@
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-      Title="Library"
+      Title="Bibliothek"
+      Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+      ScrollViewer.CanContentScroll="False"
       Loaded="OnLoaded">
     <Grid Margin="24">
         <Grid.RowDefinitions>
@@ -11,26 +13,24 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <ui:TextBlock Grid.Row="0" FontTypography="Title" Text="Library" />
-
-        <DockPanel Grid.Row="1" Margin="0,16,0,12" LastChildFill="True">
+        <DockPanel Grid.Row="1" Margin="0,0,0,12" LastChildFill="True">
             <ui:Button x:Name="DeleteButton"
                        DockPanel.Dock="Right"
                        Margin="8,0,0,0"
-                       Content="Delete"
+                       Content="Löschen"
                        Icon="{ui:SymbolIcon Delete24}"
                        IsEnabled="False"
                        Click="OnDelete" />
             <ui:Button x:Name="EditButton"
                        DockPanel.Dock="Right"
                        Margin="8,0,0,0"
-                       Content="Edit"
+                       Content="Bearbeiten"
                        Icon="{ui:SymbolIcon Edit24}"
                        IsEnabled="False"
                        Click="OnEdit" />
             <ui:TextBox x:Name="SearchBox"
-                        AutomationProperties.Name="Search songs"
-                        PlaceholderText="Search title or artist"
+                        AutomationProperties.Name="Songs suchen"
+                        PlaceholderText="Titel oder Interpret suchen"
                         Icon="{ui:SymbolIcon Search24}"
                         TextChanged="OnSearchChanged" />
         </DockPanel>
@@ -40,18 +40,17 @@
                      SelectionMode="Single"
                      AutomationProperties.Name="Songs"
                      SelectionChanged="OnSelectionChanged"
-                     MouseDoubleClick="OnEdit">
+                     MouseDoubleClick="OnEdit"
+                     KeyDown="OnListKeyDown">
             <ui:ListView.View>
                 <ui:GridView>
-                    <ui:GridViewColumn Width="260" Header="Title" DisplayMemberBinding="{Binding Title}" />
-                    <ui:GridViewColumn Width="200" Header="Artist" DisplayMemberBinding="{Binding Artist}" />
-                    <ui:GridViewColumn Width="80" Header="Duration">
+                    <ui:GridViewColumn Width="220" Header="Titel" DisplayMemberBinding="{Binding Title}" />
+                    <ui:GridViewColumn Width="160" Header="Interpret" DisplayMemberBinding="{Binding Artist}" />
+                    <ui:GridViewColumn Width="80" Header="Dauer">
                         <ui:GridViewColumn.DisplayMemberBinding>
                             <Binding Path="Duration" StringFormat="m\:ss" />
                         </ui:GridViewColumn.DisplayMemberBinding>
                     </ui:GridViewColumn>
-                    <ui:GridViewColumn Width="140" Header="License" DisplayMemberBinding="{Binding License}" />
-                    <ui:GridViewColumn Width="220" Header="Attribution" DisplayMemberBinding="{Binding Attribution}" />
                 </ui:GridView>
             </ui:ListView.View>
         </ui:ListView>
@@ -61,7 +60,7 @@
                       Margin="0,48,0,0"
                       HorizontalAlignment="Center"
                       VerticalAlignment="Top"
-                      Text="No songs found."
+                      Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                       Visibility="Collapsed" />
     </Grid>
 </Page>
