@@ -141,7 +141,7 @@ Password and token are stored in `settings.json` encrypted with Windows DPAPI fo
 
 Risks:
 
-- The library uses the API behind Radioadmin (`api.radioadmin.laut.fm`). laut.fm does not publish it for other programs, so it can change or stop working without notice, and the token expires when Radioadmin logs out.
+- The library uses the API behind Radioadmin (`search.api.radioadmin.laut.fm`). laut.fm does not publish it for other programs, so it can change or stop working without notice, and the token expires when Radioadmin logs out.
 - The import downloads the prelisten link that Radioadmin uses. Whether that is the full track or a shorter preview has not been checked against a real station.
 - laut.fm licenses the station's music for broadcasting on laut.fm. Imported laut.fm tracks are marked with that license and must not be played anywhere else.
 - Nothing here has been tested against a real laut.fm account. The tests run against a local fake server. If laut.fm expects a different format or login method, the settings show the error but do not adapt.

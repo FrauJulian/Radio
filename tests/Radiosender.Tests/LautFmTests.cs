@@ -198,8 +198,8 @@ public sealed class LautFmTests : IDisposable
         Assert.Equal("https://api.radioadmin.laut.fm/tracks/7/prelisten", track.Url);
         Assert.Equal(2, requests.Count);
         Assert.All(requests, r => Assert.Equal("Bearer geheimer-token", r.Headers.Authorization!.ToString()));
-        Assert.Contains(requests, r => r.RequestUri!.AbsoluteUri == "https://api.radioadmin.laut.fm/stations/123/tracks?title=Sommer");
-        Assert.Contains(requests, r => r.RequestUri!.AbsoluteUri == "https://api.radioadmin.laut.fm/stations/123/tracks?artist=Sommer");
+        Assert.Contains(requests, r => r.RequestUri!.AbsoluteUri == "https://search.api.radioadmin.laut.fm/stations/123/tracks?title=Sommer");
+        Assert.Contains(requests, r => r.RequestUri!.AbsoluteUri == "https://search.api.radioadmin.laut.fm/stations/123/tracks?artist=Sommer");
     }
 
     [Fact]

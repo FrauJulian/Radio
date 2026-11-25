@@ -13,6 +13,9 @@ public class LautFmProvider(HttpClient http, Func<AppSettings> settings) : IMusi
 {
     public const string ApiBase = "https://api.radioadmin.laut.fm/";
 
+    // Radioadmin sends track searches to its own host ("searchHost" in radioadmin.laut.fm/client/_/config.json).
+    public const string SearchBase = "https://search.api.radioadmin.laut.fm/";
+
     public string Name => "laut.fm";
 
     public bool IsAvailable => settings().LautFmEnabled;
@@ -28,7 +31,7 @@ public class LautFmProvider(HttpClient http, Func<AppSettings> settings) : IMusi
             return [];
 
         // The API filters one field at a time, so title and artist are two searches.
-        var url = $"{ApiBase}stations/{Uri.EscapeDataString(station)}/tracks?";
+        var url = $"{SearchBase}stations/{Uri.EscapeDataString(station)}/tracks?";
         var results = await Task.WhenAll(
             SearchFieldAsync($"{url}title={Uri.EscapeDataString(words)}", current.LautFmToken, cancellationToken),
             SearchFieldAsync($"{url}artist={Uri.EscapeDataString(words)}", current.LautFmToken, cancellationToken));
