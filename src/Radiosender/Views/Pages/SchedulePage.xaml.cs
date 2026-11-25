@@ -29,9 +29,16 @@ public partial class SchedulePage : Page
     // Optimistic state: what the user just asked for, shown before the engine has caught up.
     private bool? _expectPlaying;
 
-    public SchedulePage(ScheduleController controller)
+    private readonly Microphone _microphone;
+    private readonly ProgramMixer _mixer;
+    private readonly LiveController _live;
+
+    public SchedulePage(ScheduleController controller, Microphone microphone, ProgramOutput output, LiveController live)
     {
         _controller = controller;
+        _live = live;
+        _microphone = microphone;
+        _mixer = output.Mixer;
         InitializeComponent();
         Timeline.ItemsSource = _rows;
         // Also refreshes the buttons: Finished can arrive just before the engine reports it stopped.
@@ -48,10 +55,18 @@ public partial class SchedulePage : Page
         _controller.ItemStarted += OnItemStarted;
         _controller.ItemFailed += OnItemFailed;
         _controller.Finished += OnFinished;
+        _live.Problem += OnLiveProblem;
 
         _loading = true;
         VolumeSlider.Value = _controller.Volume;
+        MusicForMeSlider.Value = _mixer.MusicForMe;
+        MusicForOthersSlider.Value = _mixer.MusicForOthers;
+        MicrophoneForOthersSlider.Value = _mixer.MicrophoneForOthers;
+        ListenToBroadcastBox.IsChecked = _mixer.ListenToBroadcast;
+        MusicForMeSlider.IsEnabled = !_mixer.ListenToBroadcast;
         _loading = false;
+        ShowMicrophone(); // it stays on while the user visits other pages
+        ShowLive();
         FillStartTimes();
         if (_controller.Plan.Count > 0)
             UnlimitedBox.IsChecked = _controller.IsUnlimited;
@@ -71,6 +86,7 @@ public partial class SchedulePage : Page
         _controller.ItemStarted -= OnItemStarted;
         _controller.ItemFailed -= OnItemFailed;
         _controller.Finished -= OnFinished;
+        _live.Problem -= OnLiveProblem;
         _progressTimer.Stop();
     }
 
@@ -161,6 +177,90 @@ public partial class SchedulePage : Page
         _controller.Move(row.Index, offset);
         Timeline.SelectedIndex = row.Index + offset;
     });
+
+    private void OnMixChanged(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        _mixer.MusicForMe = (float)MusicForMeSlider.Value;
+        _mixer.MusicForOthers = (float)MusicForOthersSlider.Value;
+        _mixer.MicrophoneForOthers = (float)MicrophoneForOthersSlider.Value;
+        _mixer.ListenToBroadcast = ListenToBroadcastBox.IsChecked == true;
+        // While the monitor copies the broadcast, its own music level has no effect.
+        MusicForMeSlider.IsEnabled = !_mixer.ListenToBroadcast;
+    }
+
+    private async void OnMicToggle(object sender, RoutedEventArgs e)
+    {
+        var turnOn = !_microphone.IsOn;
+        MicButton.IsEnabled = false;
+        try
+        {
+            // Opening the devices can take a moment, so it runs off the UI thread.
+            await Task.Run(() =>
+            {
+                if (turnOn) _microphone.TurnOn();
+                else _microphone.TurnOff();
+            });
+            Message.IsOpen = false;
+        }
+        catch (InvalidOperationException ex)
+        {
+            ShowMessage(InfoBarSeverity.Error, "Mikrofon nicht verfügbar", ex.Message);
+        }
+        MicButton.IsEnabled = true;
+        ShowMicrophone();
+    }
+
+    private void ShowMicrophone()
+    {
+        var on = _microphone.IsOn;
+        // The label names the action; the red button shows that the microphone is live.
+        MicButton.Content = on ? "Mikro aus" : "Mikro ein";
+        MicButton.Icon = new SymbolIcon(on ? SymbolRegular.MicOff24 : SymbolRegular.Mic24);
+        MicButton.Appearance = on ? ControlAppearance.Danger : ControlAppearance.Secondary;
+        System.Windows.Automation.AutomationProperties.SetName(MicButton, on ? "Mikrofon ausschalten, es ist auf Sendung" : "Mikrofon einschalten");
+    }
+
+    private async void OnLiveToggle(object sender, RoutedEventArgs e)
+    {
+        LiveButton.IsEnabled = false;
+        try
+        {
+            if (_live.IsLive)
+            {
+                await Task.Run(_live.Stop);
+            }
+            else
+            {
+                // Opening the devices and the connection can take a moment, so it runs off the UI thread.
+                await Task.Run(() => _live.StartAsync());
+                Message.IsOpen = false;
+            }
+        }
+        catch (Exception ex) when (ex is LiveStreamException or NAudio.MmException)
+        {
+            ShowMessage(InfoBarSeverity.Error, "Live nicht möglich", ex.Message);
+        }
+        LiveButton.IsEnabled = true;
+        ShowLive();
+    }
+
+    // Comes from a background thread; the stream may have ended.
+    private void OnLiveProblem(object? sender, string message) => Dispatcher.BeginInvoke(() =>
+    {
+        ShowMessage(InfoBarSeverity.Warning, "laut.fm", message);
+        ShowLive();
+    });
+
+    private void ShowLive()
+    {
+        var live = _live.IsLive;
+        // Stays visible while live, so a stream can be stopped after laut.fm was switched off.
+        LiveButton.Visibility = _live.IsEnabled || live ? Visibility.Visible : Visibility.Collapsed;
+        LiveButton.Content = live ? "Live beenden" : "Live";
+        LiveButton.Appearance = live ? ControlAppearance.Danger : ControlAppearance.Secondary;
+        System.Windows.Automation.AutomationProperties.SetName(LiveButton, live ? "Livestream zu laut.fm beenden, er läuft" : "Livestream zu laut.fm starten");
+    }
 
     private void OnEndNow(object sender, RoutedEventArgs e)
     {

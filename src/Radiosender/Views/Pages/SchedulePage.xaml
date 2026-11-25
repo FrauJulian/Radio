@@ -86,6 +86,16 @@
                        Icon="{ui:SymbolIcon Play24}"
                        ToolTip="Plant ab diesem Moment und geht sofort auf Sendung. Die Startzeit wird ignoriert."
                        Click="OnStartNow" />
+            <!-- Only while laut.fm is on: sends the program live to the station, independent of the plan. -->
+            <ui:Button x:Name="LiveButton"
+                       MinWidth="100"
+                       Margin="8,8,0,0"
+                       VerticalAlignment="Center"
+                       Content="Live"
+                       Icon="{ui:SymbolIcon Live24}"
+                       ToolTip="Sendet alles, was auf Sendung ist, live auf deine laut.fm-Station."
+                       Visibility="Collapsed"
+                       Click="OnLiveToggle" />
         </WrapPanel>
 
         <ui:InfoBar x:Name="Message"
@@ -94,47 +104,47 @@
                     IsClosable="True"
                     IsOpen="False" />
 
-        <!-- Now playing -->
+        <!-- Now playing: what is on air and its buttons on top, the mixing desk below -->
         <Border Grid.Row="3"
                 Margin="0,16,0,16"
-                Padding="16"
+                Padding="20,16,20,12"
                 CornerRadius="8"
                 BorderThickness="1"
                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                 Background="{DynamicResource CardBackgroundFillColorDefaultBrush}">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
+            <StackPanel>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
 
-                <StackPanel Grid.Column="0">
-                    <ui:TextBlock FontTypography="Caption"
-                                  Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                  Text="Läuft gerade" />
-                    <StackPanel Margin="0,4,0,0" Orientation="Horizontal">
-                        <ContentPresenter x:Name="NowKind"
-                                          VerticalAlignment="Center"
-                                          ContentTemplate="{StaticResource KindChip}"
-                                          Visibility="Collapsed" />
-                        <ui:TextBlock x:Name="NowTitle"
-                                      Margin="8,0,0,0"
-                                      FontTypography="Subtitle"
-                                      TextTrimming="CharacterEllipsis"
-                                      Text="Nichts auf Sendung" />
+                    <StackPanel VerticalAlignment="Center">
+                        <ui:TextBlock FontTypography="Caption"
+                                      Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                      Text="Läuft gerade" />
+                        <DockPanel Margin="0,4,0,0">
+                            <ContentPresenter x:Name="NowKind"
+                                              Margin="0,0,8,0"
+                                              VerticalAlignment="Center"
+                                              ContentTemplate="{StaticResource KindChip}"
+                                              Visibility="Collapsed" />
+                            <ui:TextBlock x:Name="NowTitle"
+                                          FontTypography="Subtitle"
+                                          TextTrimming="CharacterEllipsis"
+                                          Text="Nichts auf Sendung" />
+                        </DockPanel>
                     </StackPanel>
-                    <ProgressBar x:Name="NowProgress"
-                                 Margin="0,12,0,0"
-                                 AutomationProperties.Name="Fortschritt des aktuellen Elements"
-                                 Maximum="1" />
-                    <ui:TextBlock x:Name="NowTime"
-                                  Margin="0,6,0,0"
-                                  Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                  Text=" " />
-                </StackPanel>
 
-                <StackPanel Grid.Column="1" Margin="24,0,0,0" VerticalAlignment="Center">
-                    <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
+                    <StackPanel Grid.Column="1" Margin="24,0,0,0" VerticalAlignment="Center" Orientation="Horizontal">
+                        <!-- Live microphone on the program channel; label and icon say whether it is on. -->
+                        <ui:Button x:Name="MicButton"
+                                   MinWidth="120"
+                                   Margin="0,0,20,0"
+                                   Content="Mikro ein"
+                                   Icon="{ui:SymbolIcon Mic24}"
+                                   ToolTip="Schaltet das Mikrofon auf Sendung, auch über laufende Musik."
+                                   Click="OnMicToggle" />
                         <ui:Button x:Name="EndNowButton"
                                    Content="Jetzt beenden"
                                    Icon="{ui:SymbolIcon Next24}"
@@ -150,21 +160,105 @@
                                    IsEnabled="False"
                                    Click="OnPlayToggle" />
                     </StackPanel>
-                    <StackPanel Margin="0,12,0,0" Orientation="Horizontal">
-                        <ui:SymbolIcon VerticalAlignment="Center" Symbol="Speaker224" />
-                        <Slider x:Name="VolumeSlider"
-                                Width="140"
-                                Margin="8,0,0,0"
-                                VerticalAlignment="Center"
-                                AutomationProperties.Name="Lautstärke"
-                                Minimum="0"
-                                Maximum="1"
-                                SmallChange="0.05"
-                                LargeChange="0.1"
-                                ValueChanged="OnVolumeChanged" />
+                </Grid>
+
+                <ProgressBar x:Name="NowProgress"
+                             Margin="0,14,0,0"
+                             AutomationProperties.Name="Fortschritt des aktuellen Elements"
+                             Maximum="1" />
+                <ui:TextBlock x:Name="NowTime"
+                              Margin="0,6,0,0"
+                              Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                              Text=" " />
+
+                <Border Height="1" Margin="0,4,0,14" Background="{DynamicResource CardStrokeColorDefaultBrush}" />
+
+                <!-- Mixing desk: three groups of the same width, each a heading with its levels.
+                     The groups wrap below each other on a narrow window. -->
+                <WrapPanel x:Name="MixPanel" Grid.IsSharedSizeScope="True">
+                    <WrapPanel.Resources>
+                        <Style TargetType="Slider" BasedOn="{StaticResource {x:Type Slider}}">
+                            <Setter Property="Margin" Value="12,0,0,0" />
+                            <Setter Property="VerticalAlignment" Value="Center" />
+                            <Setter Property="Minimum" Value="0" />
+                            <Setter Property="Maximum" Value="1" />
+                            <Setter Property="SmallChange" Value="0.05" />
+                            <Setter Property="LargeChange" Value="0.1" />
+                        </Style>
+                        <Style x:Key="Group" TargetType="StackPanel">
+                            <Setter Property="Width" Value="208" />
+                            <Setter Property="Margin" Value="0,0,28,8" />
+                        </Style>
+                        <Style x:Key="Heading" TargetType="ui:TextBlock">
+                            <Setter Property="FontTypography" Value="Caption" />
+                            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+                            <Setter Property="Margin" Value="0,0,0,4" />
+                        </Style>
+                    </WrapPanel.Resources>
+
+                    <StackPanel Style="{StaticResource Group}">
+                        <ui:TextBlock Style="{StaticResource Heading}" Text="Sendung (für andere)" />
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" SharedSizeGroup="MixLabel" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="32" />
+                                <RowDefinition Height="32" />
+                            </Grid.RowDefinitions>
+                            <ui:TextBlock VerticalAlignment="Center" Text="Musik" />
+                            <Slider x:Name="MusicForOthersSlider" Grid.Column="1"
+                                    AutomationProperties.Name="Musik für andere" ValueChanged="OnMixChanged" />
+                            <ui:TextBlock Grid.Row="1" VerticalAlignment="Center" Text="Mikrofon" />
+                            <Slider x:Name="MicrophoneForOthersSlider" Grid.Row="1" Grid.Column="1"
+                                    AutomationProperties.Name="Mikrofon für andere" ValueChanged="OnMixChanged" />
+                        </Grid>
                     </StackPanel>
-                </StackPanel>
-            </Grid>
+
+                    <StackPanel Style="{StaticResource Group}">
+                        <ui:TextBlock Style="{StaticResource Heading}" Text="Für mich" />
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" SharedSizeGroup="MixLabel" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="32" />
+                                <RowDefinition Height="32" />
+                            </Grid.RowDefinitions>
+                            <ui:TextBlock VerticalAlignment="Center" Text="Musik" />
+                            <Slider x:Name="MusicForMeSlider" Grid.Column="1"
+                                    AutomationProperties.Name="Musik für mich" ValueChanged="OnMixChanged" />
+                            <CheckBox x:Name="ListenToBroadcastBox"
+                                      Grid.Row="1" Grid.ColumnSpan="2"
+                                      MinWidth="0"
+                                      Padding="8,0,0,0"
+                                      VerticalAlignment="Center"
+                                      Content="Sendung 1:1 hören"
+                                      ToolTip="Du hörst genau das, was andere hören: gleiche Lautstärke von dir, Musik und allem anderen."
+                                      Checked="OnMixChanged"
+                                      Unchecked="OnMixChanged" />
+                        </Grid>
+                    </StackPanel>
+
+                    <StackPanel Style="{StaticResource Group}" Margin="0,0,0,8">
+                        <ui:TextBlock Style="{StaticResource Heading}" Text="Musik gesamt" />
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" SharedSizeGroup="MixLabel" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="32" />
+                            </Grid.RowDefinitions>
+                            <ui:TextBlock VerticalAlignment="Center" Text="Lautstärke" />
+                            <Slider x:Name="VolumeSlider" Grid.Column="1"
+                                    AutomationProperties.Name="Lautstärke der Musik gesamt" ValueChanged="OnVolumeChanged" />
+                        </Grid>
+                    </StackPanel>
+                </WrapPanel>
+            </StackPanel>
         </Border>
 
         <!-- Song request (hot swap) on the left, actions for the selected timeline row on the right -->

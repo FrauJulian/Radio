@@ -15,6 +15,9 @@ public interface IMusicProvider
     /// <summary>Name shown to the user, for example "Openverse".</summary>
     string Name { get; }
 
+    /// <summary>Whether the import page offers this provider now; one that needs a setting can hide itself.</summary>
+    bool IsAvailable => true;
+
     /// <exception cref="MusicProviderException">The search failed.</exception>
     Task<IReadOnlyList<MusicTrack>> SearchAsync(string query, CancellationToken cancellationToken = default);
 }

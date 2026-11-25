@@ -20,8 +20,18 @@ public partial class SettingsPage : Page
     // Loaded fires on every navigation to the page, so unsaved edits from an earlier visit are dropped.
     private void OnLoaded(object sender, RoutedEventArgs e) => Show(_store.Current);
 
+    // First entry of each list: the choice that names no device.
+    private const string DefaultDevice = "Windows-Standardgerät";
+    private const string NoDevice = "Kein eigenes Gerät";
+
     private void Show(AppSettings settings)
     {
+        // Read again on every visit, so a headset plugged in meanwhile shows up.
+        var devices = ProgramOutput.DeviceNames().ToList();
+        BroadcastDeviceBox.ItemsSource = devices.Prepend(DefaultDevice).ToList();
+        MonitorDeviceBox.ItemsSource = devices.Prepend(NoDevice).ToList();
+        BroadcastDeviceBox.SelectedIndex = devices.IndexOf(settings.BroadcastDevice ?? "") + 1;
+        MonitorDeviceBox.SelectedIndex = devices.IndexOf(settings.MonitorDevice ?? "") + 1;
         NewsAlertSwitch.IsChecked = settings.NewsAlert;
         NewsSecondsBox.Value = settings.NewsAlertSeconds;
         NewsSoundBox.IsChecked = settings.NewsAlertSound;
@@ -31,7 +41,20 @@ public partial class SettingsPage : Page
         NewsMinutesBox.Value = settings.NewsMinutesPerHour;
         ModeratorMinutesBox.Value = settings.ModeratorMinutesPerHour;
         AdMinutesBox.Value = settings.AdMinutesPerHour;
+        LautFmSwitch.IsChecked = settings.LautFmEnabled;
+        LautFmHostBox.Text = settings.LautFmHost;
+        LautFmPortBox.Value = settings.LautFmPort;
+        LautFmMountBox.Text = settings.LautFmMount;
+        LautFmUserBox.Text = settings.LautFmUser;
+        LautFmPasswordBox.Password = settings.LautFmPassword;
+        LautFmStationBox.Text = settings.LautFmStationId;
+        LautFmTokenBox.Password = settings.LautFmToken;
+        OnLautFmChanged(this, new RoutedEventArgs());
     }
+
+    // The access fields only matter while laut.fm is on.
+    private void OnLautFmChanged(object sender, RoutedEventArgs e) =>
+        LautFmFields.Visibility = LautFmSwitch.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
 
     // An emptied number box counts as its default.
     private static AppSettings Defaults { get; } = new();
@@ -47,6 +70,16 @@ public partial class SettingsPage : Page
         NewsMinutesPerHour = (int)(NewsMinutesBox.Value ?? Defaults.NewsMinutesPerHour),
         ModeratorMinutesPerHour = (int)(ModeratorMinutesBox.Value ?? Defaults.ModeratorMinutesPerHour),
         AdMinutesPerHour = (int)(AdMinutesBox.Value ?? Defaults.AdMinutesPerHour),
+        BroadcastDevice = BroadcastDeviceBox.SelectedIndex > 0 ? (string)BroadcastDeviceBox.SelectedItem : null,
+        MonitorDevice = MonitorDeviceBox.SelectedIndex > 0 ? (string)MonitorDeviceBox.SelectedItem : null,
+        LautFmEnabled = LautFmSwitch.IsChecked == true,
+        LautFmHost = LautFmHostBox.Text.Trim(),
+        LautFmPort = (int)(LautFmPortBox.Value ?? Defaults.LautFmPort),
+        LautFmMount = LautFmMountBox.Text.Trim(),
+        LautFmUser = LautFmUserBox.Text.Trim(),
+        LautFmPassword = LautFmPasswordBox.Password,
+        LautFmStationId = LautFmStationBox.Text.Trim(),
+        LautFmToken = LautFmTokenBox.Password.Trim(),
     };
 
     private void OnSave(object sender, RoutedEventArgs e)
@@ -62,6 +95,10 @@ public partial class SettingsPage : Page
         {
             _store.Save(settings);
             ShowMessage(InfoBarSeverity.Success, "Gespeichert", "Minuten pro Stunde gelten für den nächsten Plan.");
+        }
+        catch (NAudio.MmException)
+        {
+            ShowMessage(InfoBarSeverity.Error, "Nicht gespeichert", "Ein gewähltes Audiogerät konnte nicht geöffnet werden. Die bisherigen Geräte bleiben aktiv.");
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
