@@ -86,6 +86,16 @@
                        Icon="{ui:SymbolIcon Play24}"
                        ToolTip="Plant ab diesem Moment und geht sofort auf Sendung. Die Startzeit wird ignoriert."
                        Click="OnStartNow" />
+            <!-- Only while laut.fm is on: sends the program live to the station, independent of the plan. -->
+            <ui:Button x:Name="LiveButton"
+                       MinWidth="100"
+                       Margin="8,8,0,0"
+                       VerticalAlignment="Center"
+                       Content="Live"
+                       Icon="{ui:SymbolIcon Live24}"
+                       ToolTip="Sendet alles, was auf Sendung ist, live auf deine laut.fm-Station."
+                       Visibility="Collapsed"
+                       Click="OnLiveToggle" />
         </WrapPanel>
 
         <ui:InfoBar x:Name="Message"

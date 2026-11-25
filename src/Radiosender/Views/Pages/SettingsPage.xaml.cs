@@ -41,7 +41,20 @@ public partial class SettingsPage : Page
         NewsMinutesBox.Value = settings.NewsMinutesPerHour;
         ModeratorMinutesBox.Value = settings.ModeratorMinutesPerHour;
         AdMinutesBox.Value = settings.AdMinutesPerHour;
+        LautFmSwitch.IsChecked = settings.LautFmEnabled;
+        LautFmHostBox.Text = settings.LautFmHost;
+        LautFmPortBox.Value = settings.LautFmPort;
+        LautFmMountBox.Text = settings.LautFmMount;
+        LautFmUserBox.Text = settings.LautFmUser;
+        LautFmPasswordBox.Password = settings.LautFmPassword;
+        LautFmStationBox.Text = settings.LautFmStationId;
+        LautFmTokenBox.Password = settings.LautFmToken;
+        OnLautFmChanged(this, new RoutedEventArgs());
     }
+
+    // The access fields only matter while laut.fm is on.
+    private void OnLautFmChanged(object sender, RoutedEventArgs e) =>
+        LautFmFields.Visibility = LautFmSwitch.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
 
     // An emptied number box counts as its default.
     private static AppSettings Defaults { get; } = new();
@@ -59,6 +72,14 @@ public partial class SettingsPage : Page
         AdMinutesPerHour = (int)(AdMinutesBox.Value ?? Defaults.AdMinutesPerHour),
         BroadcastDevice = BroadcastDeviceBox.SelectedIndex > 0 ? (string)BroadcastDeviceBox.SelectedItem : null,
         MonitorDevice = MonitorDeviceBox.SelectedIndex > 0 ? (string)MonitorDeviceBox.SelectedItem : null,
+        LautFmEnabled = LautFmSwitch.IsChecked == true,
+        LautFmHost = LautFmHostBox.Text.Trim(),
+        LautFmPort = (int)(LautFmPortBox.Value ?? Defaults.LautFmPort),
+        LautFmMount = LautFmMountBox.Text.Trim(),
+        LautFmUser = LautFmUserBox.Text.Trim(),
+        LautFmPassword = LautFmPasswordBox.Password,
+        LautFmStationId = LautFmStationBox.Text.Trim(),
+        LautFmToken = LautFmTokenBox.Password.Trim(),
     };
 
     private void OnSave(object sender, RoutedEventArgs e)

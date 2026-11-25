@@ -154,6 +154,74 @@
             </Grid>
         </Border>
 
+        <!-- laut.fm: live streaming and the station's library -->
+        <Border Style="{StaticResource Card}">
+            <StackPanel>
+                <ui:ToggleSwitch x:Name="LautFmSwitch" Content="laut.fm"
+                                 Checked="OnLautFmChanged" Unchecked="OnLautFmChanged" />
+                <ui:TextBlock Margin="0,8,0,0" TextWrapping="Wrap"
+                              Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                              Text="Sendet live auf deine laut.fm-Station und bietet ihre Musik beim Import an. Im Plan erscheint dann der Button „Live“." />
+                <Grid x:Name="LautFmFields" Margin="0,4,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="220" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <ui:TextBlock Margin="0,12,0,0" Grid.ColumnSpan="2" FontTypography="BodyStrong" Text="Live senden" />
+                    <Label Grid.Row="1" Margin="0,8,0,0" VerticalAlignment="Center"
+                           Content="Server" Target="{Binding ElementName=LautFmHostBox}" />
+                    <ui:TextBox x:Name="LautFmHostBox" Grid.Row="1" Grid.Column="1" Margin="0,8,0,0"
+                                AutomationProperties.Name="laut.fm-Server" />
+                    <Label Grid.Row="2" Margin="0,8,0,0" VerticalAlignment="Center"
+                           Content="Port" Target="{Binding ElementName=LautFmPortBox}" />
+                    <ui:NumberBox x:Name="LautFmPortBox" Grid.Row="2" Grid.Column="1" Margin="0,8,0,0"
+                                  Width="130" HorizontalAlignment="Left" Minimum="1" Maximum="65535"
+                                  MaxDecimalPlaces="0" SmallChange="1" ClearButtonEnabled="False"
+                                  AutomationProperties.Name="laut.fm-Port" />
+                    <Label Grid.Row="3" Margin="0,8,0,0" VerticalAlignment="Center"
+                           Content="Mountpoint" Target="{Binding ElementName=LautFmMountBox}" />
+                    <ui:TextBox x:Name="LautFmMountBox" Grid.Row="3" Grid.Column="1" Margin="0,8,0,0"
+                                AutomationProperties.Name="laut.fm-Mountpoint" />
+                    <Label Grid.Row="4" Margin="0,8,0,0" VerticalAlignment="Center"
+                           Content="Benutzer" Target="{Binding ElementName=LautFmUserBox}" />
+                    <ui:TextBox x:Name="LautFmUserBox" Grid.Row="4" Grid.Column="1" Margin="0,8,0,0"
+                                AutomationProperties.Name="laut.fm-Benutzer" />
+                    <Label Grid.Row="5" Margin="0,8,0,0" VerticalAlignment="Center"
+                           Content="Passwort" Target="{Binding ElementName=LautFmPasswordBox}" />
+                    <ui:PasswordBox x:Name="LautFmPasswordBox" Grid.Row="5" Grid.Column="1" Margin="0,8,0,0"
+                                    AutomationProperties.Name="laut.fm-Passwort" />
+                    <ui:TextBlock Grid.Row="6" Grid.ColumnSpan="2" Margin="0,8,0,0" TextWrapping="Wrap"
+                                  Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                  Text="Diese Werte stehen in Radioadmin unter „Live senden“." />
+                    <ui:TextBlock Grid.Row="7" Margin="0,16,0,0" Grid.ColumnSpan="2" FontTypography="BodyStrong" Text="Bibliothek" />
+                    <Label Grid.Row="8" Margin="0,8,0,0" VerticalAlignment="Center"
+                           Content="Stations-ID" Target="{Binding ElementName=LautFmStationBox}" />
+                    <ui:TextBox x:Name="LautFmStationBox" Grid.Row="8" Grid.Column="1" Margin="0,8,0,0"
+                                AutomationProperties.Name="laut.fm-Stations-ID" />
+                    <Label Grid.Row="9" Margin="0,8,0,0" VerticalAlignment="Center"
+                           Content="Radioadmin-Token" Target="{Binding ElementName=LautFmTokenBox}" />
+                    <ui:PasswordBox x:Name="LautFmTokenBox" Grid.Row="9" Grid.Column="1" Margin="0,8,0,0"
+                                    AutomationProperties.Name="Radioadmin-Token"
+                                    ToolTip="Nach dem Login in Radioadmin in den Entwicklertools des Browsers: Lokaler Speicher, Schlüssel laut.fm.api.token." />
+                </Grid>
+                <ui:TextBlock x:Name="LautFmHint" Margin="0,12,0,0" TextWrapping="Wrap"
+                              Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                              Text="Passwort und Token werden verschlüsselt für deinen Windows-Benutzer gespeichert. Die Bibliothek nutzt eine nicht offizielle laut.fm-Schnittstelle und kann ohne Vorwarnung ausfallen." />
+            </StackPanel>
+        </Border>
+
         <StackPanel Margin="0,4,0,0" Orientation="Horizontal">
             <ui:Button Appearance="Primary" MinWidth="110" Content="Speichern" Icon="{ui:SymbolIcon Save24}" Click="OnSave" />
             <ui:Button Margin="8,0,0,0" MinWidth="110" Content="Zurücksetzen" Icon="{ui:SymbolIcon ArrowReset24}"

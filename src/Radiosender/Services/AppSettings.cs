@@ -1,5 +1,8 @@
 using System.IO;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Radiosender.Services;
 
@@ -38,6 +41,38 @@ public record AppSettings
     /// <summary>Playback device for the person at the desk; <c>null</c> means no device of its own.</summary>
     public string? MonitorDevice { get; init; }
 
+    /// <summary>Streaming to laut.fm and its library on the Import page; the Live button shows only while this is on.</summary>
+    public bool LautFmEnabled { get; init; }
+
+    /// <summary>The station's id in Radioadmin, needed for the library.</summary>
+    public string LautFmStationId { get; init; } = "";
+
+    /// <summary>Live access data from Radioadmin, "Live senden".</summary>
+    public string LautFmHost { get; init; } = "";
+
+    public int LautFmPort { get; init; } = 8080;
+
+    public string LautFmMount { get; init; } = "";
+
+    public string LautFmUser { get; init; } = "source";
+
+    /// <summary>Kept in memory as is; the file only holds it encrypted for the Windows user.</summary>
+    [JsonIgnore]
+    public string LautFmPassword { get; init; } = "";
+
+    /// <summary>The Radioadmin login token for the library; stored encrypted like the password.</summary>
+    [JsonIgnore]
+    public string LautFmToken { get; init; } = "";
+
+    [JsonInclude, JsonPropertyName("LautFmPassword")]
+    private string? ProtectedLautFmPassword { get => Protect(LautFmPassword); init => LautFmPassword = Unprotect(value); }
+
+    [JsonInclude, JsonPropertyName("LautFmToken")]
+    private string? ProtectedLautFmToken { get => Protect(LautFmToken); init => LautFmToken = Unprotect(value); }
+
+    // Records print every property; the password and token stay out of logs and debugger views.
+    public override string ToString() => nameof(AppSettings);
+
     public static string DefaultPath { get; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Radiosender", "settings.json");
 
@@ -52,6 +87,17 @@ public record AppSettings
             return "Minuten pro Stunde dürfen nicht negativ sein.";
         if (NewsMinutesPerHour + ModeratorMinutesPerHour + AdMinutesPerHour > 60)
             return "Nachrichten, Moderation und Werbung dürfen zusammen höchstens 60 Minuten pro Stunde dauern.";
+        if (LautFmEnabled)
+        {
+            if (string.IsNullOrWhiteSpace(LautFmHost) || Uri.CheckHostName(LautFmHost.Trim()) == UriHostNameType.Unknown)
+                return "Für laut.fm fehlt ein gültiger Server.";
+            if (LautFmPort is < 1 or > 65535)
+                return "Der laut.fm-Port muss zwischen 1 und 65535 liegen.";
+            if (string.IsNullOrWhiteSpace(LautFmMount))
+                return "Für laut.fm fehlt der Mountpoint.";
+            if (LautFmToken.Length > 0 && string.IsNullOrWhiteSpace(LautFmStationId))
+                return "Für die laut.fm-Bibliothek fehlt die Stations-ID.";
+        }
         return null;
     }
 
@@ -82,5 +128,25 @@ public record AppSettings
     {
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllText(path, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
+    }
+
+    // DPAPI: only this Windows user on this computer can read the value back.
+    private static string? Protect(string secret) => secret.Length == 0
+        ? null
+        : Convert.ToBase64String(ProtectedData.Protect(Encoding.UTF8.GetBytes(secret), null, DataProtectionScope.CurrentUser));
+
+    // A value from another user or computer cannot be read; the user enters it again.
+    private static string Unprotect(string? stored)
+    {
+        if (string.IsNullOrEmpty(stored))
+            return "";
+        try
+        {
+            return Encoding.UTF8.GetString(ProtectedData.Unprotect(Convert.FromBase64String(stored), null, DataProtectionScope.CurrentUser));
+        }
+        catch (Exception ex) when (ex is CryptographicException or FormatException)
+        {
+            return "";
+        }
     }
 }

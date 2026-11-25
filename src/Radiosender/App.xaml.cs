@@ -41,6 +41,15 @@ public partial class App : Application
         // Music providers: add a line here for each new IMusicProvider; the import page lists them all.
         services.AddSingleton<IMusicProvider, OpenverseProvider>();
         services.AddSingleton<IMusicProvider, InternetArchiveProvider>();
+        // The station's own library; listed only while laut.fm is switched on in the settings.
+        services.AddSingleton<IMusicProvider>(provider => new LautFmProvider(
+            provider.GetRequiredService<System.Net.Http.HttpClient>(), () => provider.GetRequiredService<SettingsStore>().Current));
+        services.AddSingleton(provider => new LiveController(
+            provider.GetRequiredService<ScheduleController>(),
+            provider.GetRequiredService<SettingsStore>(),
+            provider.GetRequiredService<ProgramOutput>(),
+            provider.GetRequiredService<System.Net.Http.HttpClient>(),
+            () => DateTime.Now));
         services.AddSingleton(provider => new TrackDownloader(provider.GetRequiredService<System.Net.Http.HttpClient>(), TrackDownloader.DefaultMusicFolder));
         services.AddSingleton<OnlineImportController>();
         services.AddSingleton(provider => new SongImportService(provider.GetRequiredService<SongRepository>(), SongImportService.DefaultMusicDirectory));
@@ -70,6 +79,7 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        _services?.GetRequiredService<LiveController>().Stop();
         _services?.GetRequiredService<ScheduleController>().Stop();
         _services?.Dispose();
         base.OnExit(e);

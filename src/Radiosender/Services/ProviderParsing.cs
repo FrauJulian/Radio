@@ -9,12 +9,18 @@ namespace Radiosender.Services;
 internal static partial class ProviderParsing
 {
     /// <summary>Fetches <paramref name="url"/> and parses it as JSON, whatever content type the server names.</summary>
+    /// <param name="bearerToken">Sent as the Authorization header when set.</param>
     /// <exception cref="MusicProviderException">The request failed or the answer is not JSON.</exception>
-    public static async Task<JsonDocument> GetJsonAsync(HttpClient http, string url, string provider, CancellationToken cancellationToken)
+    public static async Task<JsonDocument> GetJsonAsync(HttpClient http, string url, string provider, CancellationToken cancellationToken, string? bearerToken = null)
     {
         try
         {
-            using var response = await http.GetAsync(url, cancellationToken);
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            if (bearerToken is not null)
+                request.Headers.Authorization = new("Bearer", bearerToken);
+            using var response = await http.SendAsync(request, cancellationToken);
+            if (response.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden && bearerToken is not null)
+                throw new MusicProviderException($"{provider} hat die Anmeldung abgelehnt. Den Token in den Einstellungen prüfen.");
             if (!response.IsSuccessStatusCode)
                 throw new MusicProviderException($"{provider} hat HTTP {(int)response.StatusCode} geliefert.");
             // Parsed without looking at the content type: not every API labels its JSON as such.

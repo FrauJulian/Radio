@@ -23,6 +23,7 @@ public sealed class ProgramOutput
     private bool _started;
     private WaveOut? _broadcastDevice;
     private WaveOut? _monitorDevice;
+    private volatile BufferedWaveProvider? _liveFeed;
 
     private ProgramOutput()
     {
@@ -81,6 +82,37 @@ public sealed class ProgramOutput
         return input;
     }
 
+    /// <summary>
+    /// Starts a copy of the broadcast mix for a live stream and opens the output devices if needed, because
+    /// the broadcast device sets the pace. Only one feed at a time: a new one replaces the old.
+    /// </summary>
+    /// <exception cref="NAudio.MmException">No audio output device can be opened.</exception>
+    public BufferedWaveProvider OpenLiveFeed()
+    {
+        // Holds a few seconds; if the reader falls behind, the newest audio is dropped instead of piling up.
+        var feed = new BufferedWaveProvider(Format, TimeSpan.FromSeconds(5)) { DiscardOnBufferOverflow = true, ReadFully = false };
+        lock (_lock)
+        {
+            if (!_started)
+            {
+                OpenDevices();
+                _started = true;
+            }
+            _liveFeed = feed;
+        }
+        return feed;
+    }
+
+    /// <summary>Stops copying into the feed from <see cref="OpenLiveFeed"/>.</summary>
+    public void CloseLiveFeed(BufferedWaveProvider feed)
+    {
+        lock (_lock)
+        {
+            if (_liveFeed == feed)
+                _liveFeed = null;
+        }
+    }
+
     /// <summary>Takes an input off air. Returns once the audio thread no longer reads from it.</summary>
     public void Remove(ISampleProvider input) => Mixer.Remove(input);
 
@@ -111,7 +143,7 @@ public sealed class ProgramOutput
             if (monitor < 0)
             {
                 // One device: the person at the desk hears the monitor mix; nothing is sent anywhere else.
-                _broadcastDevice = Open(broadcast, new Tap(Mixer, null));
+                _broadcastDevice = Open(broadcast, new Tap(this, null));
             }
             else
             {
@@ -119,7 +151,7 @@ public sealed class ProgramOutput
                 // which waits in a short buffer for the second device. The buffer drops what it cannot hold,
                 // so the two device clocks drifting apart never builds up a delay.
                 var monitorBuffer = new BufferedWaveProvider(Format, TimeSpan.FromMilliseconds(300)) { DiscardOnBufferOverflow = true };
-                _broadcastDevice = Open(broadcast, new Tap(Mixer, monitorBuffer));
+                _broadcastDevice = Open(broadcast, new Tap(this, monitorBuffer));
                 _monitorDevice = Open(monitor, monitorBuffer.ToSampleProvider());
             }
         }
@@ -158,9 +190,9 @@ public sealed class ProgramOutput
 
     /// <summary>
     /// What the pacing device plays. With a monitor buffer it plays the broadcast mix and feeds the buffer;
-    /// without one it plays the monitor mix itself.
+    /// without one it plays the monitor mix itself. Either way the broadcast mix also goes to the live feed, if there is one.
     /// </summary>
-    private sealed class Tap(ProgramMixer mixer, BufferedWaveProvider? monitorBuffer) : ISampleProvider
+    private sealed class Tap(ProgramOutput output, BufferedWaveProvider? monitorBuffer) : ISampleProvider
     {
         private float[] _other = [];
 
@@ -172,15 +204,19 @@ public sealed class ProgramOutput
                 _other = new float[buffer.Length];
             var other = _other.AsSpan(0, buffer.Length);
 
+            Span<float> broadcast;
             if (monitorBuffer is null)
             {
-                mixer.Mix(other, buffer);
+                output.Mixer.Mix(other, buffer);
+                broadcast = other;
             }
             else
             {
-                mixer.Mix(buffer, other);
+                output.Mixer.Mix(buffer, other);
                 monitorBuffer.AddSamples(MemoryMarshal.AsBytes(other));
+                broadcast = buffer;
             }
+            output._liveFeed?.AddSamples(MemoryMarshal.AsBytes(broadcast));
             return buffer.Length; // never ends: silence while nothing is on air
         }
     }

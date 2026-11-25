@@ -7,8 +7,10 @@ namespace Radiosender.Controllers;
 /// <summary>Searches the registered music providers and imports their results into the library.</summary>
 public class OnlineImportController(IEnumerable<IMusicProvider> providers, TrackDownloader downloader, SongRepository songs)
 {
-    /// <summary>Every provider registered in <c>App</c>, in registration order.</summary>
-    public IReadOnlyList<IMusicProvider> Providers { get; } = providers.ToList();
+    private readonly IReadOnlyList<IMusicProvider> _providers = providers.ToList();
+
+    /// <summary>The providers registered in <c>App</c> that are available now, in registration order.</summary>
+    public IReadOnlyList<IMusicProvider> Providers => _providers.Where(provider => provider.IsAvailable).ToList();
 
     /// <summary>Ids of the provider results that are already in the library.</summary>
     public IReadOnlySet<string> ImportedIds() => songs.GetExternalIds();
