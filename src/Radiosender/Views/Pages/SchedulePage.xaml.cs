@@ -29,9 +29,14 @@ public partial class SchedulePage : Page
     // Optimistic state: what the user just asked for, shown before the engine has caught up.
     private bool? _expectPlaying;
 
-    public SchedulePage(ScheduleController controller)
+    private readonly Microphone _microphone;
+    private readonly ProgramMixer _mixer;
+
+    public SchedulePage(ScheduleController controller, Microphone microphone, ProgramOutput output)
     {
         _controller = controller;
+        _microphone = microphone;
+        _mixer = output.Mixer;
         InitializeComponent();
         Timeline.ItemsSource = _rows;
         // Also refreshes the buttons: Finished can arrive just before the engine reports it stopped.
@@ -51,7 +56,13 @@ public partial class SchedulePage : Page
 
         _loading = true;
         VolumeSlider.Value = _controller.Volume;
+        MusicForMeSlider.Value = _mixer.MusicForMe;
+        MusicForOthersSlider.Value = _mixer.MusicForOthers;
+        MicrophoneForOthersSlider.Value = _mixer.MicrophoneForOthers;
+        ListenToBroadcastBox.IsChecked = _mixer.ListenToBroadcast;
+        MusicForMeSlider.IsEnabled = !_mixer.ListenToBroadcast;
         _loading = false;
+        ShowMicrophone(); // it stays on while the user visits other pages
         FillStartTimes();
         if (_controller.Plan.Count > 0)
             UnlimitedBox.IsChecked = _controller.IsUnlimited;
@@ -161,6 +172,49 @@ public partial class SchedulePage : Page
         _controller.Move(row.Index, offset);
         Timeline.SelectedIndex = row.Index + offset;
     });
+
+    private void OnMixChanged(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        _mixer.MusicForMe = (float)MusicForMeSlider.Value;
+        _mixer.MusicForOthers = (float)MusicForOthersSlider.Value;
+        _mixer.MicrophoneForOthers = (float)MicrophoneForOthersSlider.Value;
+        _mixer.ListenToBroadcast = ListenToBroadcastBox.IsChecked == true;
+        // While the monitor copies the broadcast, its own music level has no effect.
+        MusicForMeSlider.IsEnabled = !_mixer.ListenToBroadcast;
+    }
+
+    private async void OnMicToggle(object sender, RoutedEventArgs e)
+    {
+        var turnOn = !_microphone.IsOn;
+        MicButton.IsEnabled = false;
+        try
+        {
+            // Opening the devices can take a moment, so it runs off the UI thread.
+            await Task.Run(() =>
+            {
+                if (turnOn) _microphone.TurnOn();
+                else _microphone.TurnOff();
+            });
+            Message.IsOpen = false;
+        }
+        catch (InvalidOperationException ex)
+        {
+            ShowMessage(InfoBarSeverity.Error, "Mikrofon nicht verfügbar", ex.Message);
+        }
+        MicButton.IsEnabled = true;
+        ShowMicrophone();
+    }
+
+    private void ShowMicrophone()
+    {
+        var on = _microphone.IsOn;
+        // The label names the action; the red button shows that the microphone is live.
+        MicButton.Content = on ? "Mikro aus" : "Mikro ein";
+        MicButton.Icon = new SymbolIcon(on ? SymbolRegular.MicOff24 : SymbolRegular.Mic24);
+        MicButton.Appearance = on ? ControlAppearance.Danger : ControlAppearance.Secondary;
+        System.Windows.Automation.AutomationProperties.SetName(MicButton, on ? "Mikrofon ausschalten, es ist auf Sendung" : "Mikrofon einschalten");
+    }
 
     private void OnEndNow(object sender, RoutedEventArgs e)
     {

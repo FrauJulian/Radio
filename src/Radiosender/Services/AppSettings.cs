@@ -32,6 +32,12 @@ public record AppSettings
     /// <summary>Target; the plan gets as close as the song lengths allow.</summary>
     public int AdMinutesPerHour { get; init; } = 20;
 
+    /// <summary>Playback device for the listeners; <c>null</c> is the Windows default device.</summary>
+    public string? BroadcastDevice { get; init; }
+
+    /// <summary>Playback device for the person at the desk; <c>null</c> means no device of its own.</summary>
+    public string? MonitorDevice { get; init; }
+
     public static string DefaultPath { get; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Radiosender", "settings.json");
 

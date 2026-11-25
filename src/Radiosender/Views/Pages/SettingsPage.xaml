@@ -90,6 +90,34 @@
             </Grid>
         </Border>
 
+        <!-- Audio devices -->
+        <Border Style="{StaticResource Card}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="220" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <ui:TextBlock Grid.ColumnSpan="2" FontTypography="BodyStrong" Text="Audio-Ausgabe" />
+                <Label Grid.Row="1" Margin="0,12,0,0" VerticalAlignment="Center"
+                       Content="Sendung (für andere)" Target="{Binding ElementName=BroadcastDeviceBox}" />
+                <ComboBox x:Name="BroadcastDeviceBox" Grid.Row="1" Grid.Column="1" Margin="0,12,0,0"
+                          AutomationProperties.Name="Ausgabegerät für die Sendung" />
+                <Label Grid.Row="2" Margin="0,8,0,0" VerticalAlignment="Center"
+                       Content="Für mich (Kopfhörer)" Target="{Binding ElementName=MonitorDeviceBox}" />
+                <ComboBox x:Name="MonitorDeviceBox" Grid.Row="2" Grid.Column="1" Margin="0,8,0,0"
+                          AutomationProperties.Name="Ausgabegerät für mich" />
+                <ui:TextBlock Grid.Row="3" Grid.ColumnSpan="2" Margin="0,12,0,0" TextWrapping="Wrap"
+                              Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                              Text="Getrennte Lautstärken für dich und für andere brauchen zwei verschiedene Geräte. Mit nur einem Gerät hörst du deinen eigenen Mix." />
+            </Grid>
+        </Border>
+
         <!-- Minutes per hour -->
         <Border Style="{StaticResource Card}">
             <Grid>

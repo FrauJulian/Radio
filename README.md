@@ -7,6 +7,7 @@ WPF desktop app that plans and plays a radio program for a chosen number of full
 - Windows
 - .NET SDK 10
 - An audio output device for playback
+- A microphone, if you want to talk on air
 
 ## Build and run
 
@@ -38,9 +39,11 @@ The interface is in German. This section names the controls as they appear on sc
    3. **Start** puts the plan on air on the real clock. Before the planned start the now-playing card shows when the broadcast begins; if the plan has already begun, playback joins at the next item. The same button then reads **Stopp** and ends it. The now-playing card shows the current item, its progress and the volume.
    4. **Edit the timeline**: select an upcoming row and use the buttons above the list to move it up or down, edit it, or remove it (trash icon). News, ad and moderator items have no title until you give them one; news and moderator items can also change their length. A double-click opens the editor too. Every item after a change follows on without a gap. The item on air can be edited too, but not moved or removed; **Jetzt beenden** in the now-playing card ends it at once and starts the next item.
    5. **Speaking reminder**: 30 seconds before a news or moderator item goes on air, a dialog in the middle of the screen reminds you on any page and stays until you click **OK**.
-   6. **Songwunsch**: choose a song, select an upcoming row in the timeline and click **Auswahl ersetzen**. This also works while the broadcast is running.
+   6. **Microphone**: **Mikro ein** in the now-playing card puts the default microphone on air, also over running music; the button turns red and reads **Mikro aus**. It works with or without a broadcast and stays on while you visit other pages.
+   7. **Mix levels**, below the now-playing row: **Musik für andere** and **Ich für andere** set how loud the music and the microphone are for the listeners, **Musik für mich** how loud the music is on your own device. **Sendung 1:1 hören** lets you hear exactly what the listeners hear. The slider next to the loudspeaker stays the overall music volume.
+   8. **Songwunsch**: choose a song, select an upcoming row in the timeline and click **Auswahl ersetzen**. This also works while the broadcast is running.
 
-4. **Einstellungen** (bottom left): switch the speaking alert on or off for news and for moderator talk, set how many seconds before the start it appears and whether it plays a bing sound. Set the minutes per hour for news, moderator talk and ads (defaults 10, 10 and 20); together they can take at most 60 minutes. **Zurücksetzen** puts the default values into the form, **Speichern** stores them in `settings.json` next to the database. Alerts change at once; minutes per hour apply to the next schedule.
+4. **Einstellungen** (bottom left): switch the speaking alert on or off for news and for moderator talk, set how many seconds before the start it appears and whether it plays a bing sound. Choose the playback device for the broadcast (for the listeners) and, if you have a second one such as headphones, the device for yourself. Set the minutes per hour for news, moderator talk and ads (defaults 10, 10 and 20); together they can take at most 60 minutes. **Zurücksetzen** puts the default values into the form, **Speichern** stores them in `settings.json` next to the database. Alerts change at once; minutes per hour apply to the next schedule.
 
 News, ads and moderator talk are placeholders: the app shows them in the timeline and keeps silent for their duration, so the speaker can talk live.
 
@@ -76,7 +79,10 @@ Main services:
 - `SongImportService`: copies an uploaded file into the music folder, reads its tags with TagLibSharp and its duration with NAudio
 - `IMusicProvider`: an online catalog that can be searched. `OpenverseProvider` uses the anonymous Openverse API and `InternetArchiveProvider` the Internet Archive search, limited to Creative Commons licensed MP3 files.
 - `TrackDownloader`: downloads a search result into the music folder, the same way for every provider
-- `MusicPlayer`: the audio player as a singleton (`MusicPlayer.Instance`, private constructor). It plays files with NAudio.
+- `ProgramMixer`: mixes songs and the microphone twice in one pass, once for the listeners and once for the person at the desk, each with its own levels
+- `ProgramOutput`: the station's audio channel. It plays the broadcast mix on one device and, if a second device is chosen, the monitor mix on that one
+- `MusicPlayer`: the audio player as a singleton (`MusicPlayer.Instance`, private constructor). It reads files with NAudio and plays them on the `ProgramOutput`
+- `Microphone`: captures the default recording device and puts it on the `ProgramOutput`
 - `ScheduleGenerator`: builds the plan and handles song requests
 - `PlaybackEngine`: runs the plan item by item on a background thread and plays songs through `MusicPlayer`
 
@@ -128,5 +134,7 @@ For each downloaded track the app stores the license (for example `CC BY 4.0`) a
 - **Internet Archive**: one search asks for up to 8 items and then for the file list of each, and shows at most 5 MP3 files per item. Results can include long recordings; the 50 MB download limit applies.
 - **Very old libraries**: a `radiosender.db` from before the Openverse import has no `OpenverseId` column and is not upgraded. Delete the file and import the music again.
 - **Deleting a song** removes it from the library but keeps its file in the `Music` folder.
-- **Placeholders** have no audio.
+- **Placeholders** have no audio; news and moderator talk are spoken live through the microphone.
+- **Microphone**: uses the default Windows recording device. With loudspeakers next to the microphone the room hears itself and can start to howl, so use headphones. Speech arrives about a fifth of a second late. The alert tone and the import preview are not part of the program channel.
+- **Two mixes need two devices**: with one playback device you hear your own mix, or the broadcast mix while **Sendung 1:1 hören** is on, and nobody else hears anything different. Your own mix never contains the microphone. With two devices their clocks can drift, which shows as a rare tiny dropout on the second device. The mix levels are not stored and start at full on every launch.
 - **Targets** for ads and moderator talk are missed by the time the songs cannot fill, usually a few seconds per hour; a small library or only long songs make that more.

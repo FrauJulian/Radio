@@ -4,7 +4,7 @@ using NAudio.Wave;
 namespace Radiosender.Services;
 
 /// <summary>
-/// Plays one audio file at a time through the default output device.
+/// Plays one audio file at a time on the <see cref="ProgramOutput"/>, the station's audio channel.
 /// </summary>
 /// <remarks>
 /// <see cref="TrackFinished"/> and <see cref="PositionChanged"/> are raised on a thread-pool thread,
@@ -17,15 +17,19 @@ public sealed class MusicPlayer : IAudioPlayer
 
     private static readonly TimeSpan PositionInterval = TimeSpan.FromMilliseconds(250);
 
+    private readonly ProgramOutput _output = ProgramOutput.Instance;
     private readonly Lock _lock = new();
-    private WaveOut? _output;
     private AudioFileReader? _reader;
+    private ISampleProvider? _input; // the reader as it sits in the mixer; null while paused
     private Timer? _positionTimer;
     private float _volume = 1f;
 
     private MusicPlayer()
     {
-        // Releases the audio device when the app exits.
+        // The mixer reports the end of a track on the audio thread, which must not wait for _lock:
+        // Stop holds _lock while it waits for that thread. So the work moves to the thread pool.
+        _output.InputEnded += (_, input) => ThreadPool.QueueUserWorkItem(_ => OnInputEnded(input));
+        // Releases the file when the app exits.
         AppDomain.CurrentDomain.ProcessExit += (_, _) => Stop();
     }
 
@@ -39,7 +43,7 @@ public sealed class MusicPlayer : IAudioPlayer
 
     public bool IsPlaying
     {
-        get { lock (_lock) return _output?.PlaybackState == PlaybackState.Playing; }
+        get { lock (_lock) return _input is not null; }
     }
 
     public TimeSpan Position
@@ -52,7 +56,10 @@ public sealed class MusicPlayer : IAudioPlayer
         get { lock (_lock) return _reader?.TotalTime ?? TimeSpan.Zero; }
     }
 
-    /// <summary>Playback volume from 0 (silent) to 1 (full). Kept across tracks.</summary>
+    /// <summary>
+    /// Volume of the music from 0 (silent) to 1 (full), before it reaches the mixer, so it applies to listeners and
+    /// monitor alike. Kept across tracks; the microphone is not affected.
+    /// </summary>
     public float Volume
     {
         get { lock (_lock) return _volume; }
@@ -85,25 +92,20 @@ public sealed class MusicPlayer : IAudioPlayer
             try
             {
                 _reader = new AudioFileReader(filePath) { Volume = _volume };
+                _input = _output.Add(_reader, AudioSource.Music);
             }
-            catch (Exception ex) when (ex is not OutOfMemoryException)
+            catch (Exception ex) when (ex is not (OutOfMemoryException or NAudio.MmException))
             {
+                Release();
                 throw new InvalidDataException($"Audiodatei kann nicht gelesen werden: {filePath}", ex);
-            }
-
-            try
-            {
-                _output = new WaveOut();
-                _output.PlaybackStopped += OnPlaybackStopped;
-                _output.Init(_reader);
-                _output.Play();
-                _positionTimer = new Timer(OnPositionTimer, null, PositionInterval, PositionInterval);
             }
             catch
             {
-                Release();
+                Release(); // no output device: the file must not stay open
                 throw;
             }
+
+            _positionTimer = new Timer(OnPositionTimer, null, PositionInterval, PositionInterval);
         }
     }
 
@@ -111,7 +113,9 @@ public sealed class MusicPlayer : IAudioPlayer
     {
         lock (_lock)
         {
-            if (_output?.PlaybackState == PlaybackState.Playing) _output.Pause();
+            if (_input is null) return;
+            _output.Remove(_input);
+            _input = null;
         }
     }
 
@@ -119,45 +123,43 @@ public sealed class MusicPlayer : IAudioPlayer
     {
         lock (_lock)
         {
-            if (_output?.PlaybackState == PlaybackState.Paused) _output.Play();
+            if (_reader is not null && _input is null) _input = _output.Add(_reader, AudioSource.Music);
         }
     }
 
-    /// <summary>Stops playback and releases the file and audio device. Does not raise <see cref="TrackFinished"/>.</summary>
+    /// <summary>Stops playback and releases the file. Does not raise <see cref="TrackFinished"/>.</summary>
     public void Stop()
     {
         lock (_lock) Release();
     }
 
-    // Caller holds _lock. Unsubscribing first keeps Stop and track replacement from raising TrackFinished.
+    // Caller holds _lock. Clearing _input first keeps Stop and track replacement from raising TrackFinished.
     private void Release()
     {
         _positionTimer?.Dispose();
         _positionTimer = null;
 
-        if (_output is not null)
+        if (_input is not null)
         {
-            _output.PlaybackStopped -= OnPlaybackStopped;
-            _output.Dispose();
-            _output = null;
+            // Returns once the audio thread has let go of the reader, so disposing it below is safe.
+            _output.Remove(_input);
+            _input = null;
         }
 
         _reader?.Dispose();
         _reader = null;
     }
 
-    private void OnPlaybackStopped(object? sender, StoppedEventArgs e)
+    private void OnInputEnded(ISampleProvider input)
     {
         lock (_lock)
         {
-            // A stale event from an output that Stop or Play already released.
-            if (!ReferenceEquals(sender, _output)) return;
+            // Another input of the channel, or a track that Stop or Play already replaced.
+            if (!ReferenceEquals(input, _input)) return;
             Release();
         }
 
-        // An exception means a device error, not a natural end of the track.
-        if (e.Exception is null)
-            ThreadPool.QueueUserWorkItem(_ => TrackFinished?.Invoke(this, EventArgs.Empty));
+        TrackFinished?.Invoke(this, EventArgs.Empty);
     }
 
     private void OnPositionTimer(object? state)
@@ -165,7 +167,7 @@ public sealed class MusicPlayer : IAudioPlayer
         TimeSpan position;
         lock (_lock)
         {
-            if (_output?.PlaybackState != PlaybackState.Playing || _reader is null) return;
+            if (_input is null || _reader is null) return;
             position = _reader.CurrentTime;
         }
 

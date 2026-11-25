@@ -20,8 +20,12 @@ public partial class App : Application
         // so a running broadcast keeps going while the user switches pages.
         services.AddSingleton(_ => new SongRepository(SongRepository.DefaultDatabasePath));
         services.AddSingleton(_ => new ScheduleGenerator());
-        services.AddSingleton(provider => new SettingsStore(provider.GetRequiredService<ScheduleGenerator>(), AppSettings.DefaultPath));
+        services.AddSingleton(provider => new SettingsStore(
+            provider.GetRequiredService<ScheduleGenerator>(), provider.GetRequiredService<ProgramOutput>(), AppSettings.DefaultPath));
         services.AddSingleton(_ => new PlaybackEngine());
+        // The one audio channel that songs and the microphone share.
+        services.AddSingleton(_ => ProgramOutput.Instance);
+        services.AddSingleton<Microphone>();
         services.AddSingleton(provider => new ScheduleController(
             provider.GetRequiredService<SongRepository>(),
             provider.GetRequiredService<ScheduleGenerator>(),
@@ -57,7 +61,7 @@ public partial class App : Application
     {
         base.OnStartup(e);
         _services = BuildServices();
-        // Loads the settings and gives the generator its minutes per hour before the first plan.
+        // Loads the settings: the generator gets its minutes per hour before the first plan, the audio output its devices.
         _services.GetRequiredService<SettingsStore>();
         // Follow the Windows setting: light, dark or a high-contrast theme.
         Wpf.Ui.Appearance.ApplicationThemeManager.ApplySystemTheme();
