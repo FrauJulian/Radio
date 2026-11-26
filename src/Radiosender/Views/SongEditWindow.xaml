@@ -2,7 +2,8 @@
                  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                  xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-                 Title="Song bearbeiten"
+                 xmlns:l="clr-namespace:Radiosender.Views"
+                 Title="{l:Tr SongEdit_Title}"
                  Width="460" SizeToContent="Height"
                  ResizeMode="NoResize"
                  ShowInTaskbar="False"
@@ -11,30 +12,30 @@
                  WindowStartupLocation="CenterOwner"
                  FocusManager.FocusedElement="{Binding ElementName=TitleBox}">
     <StackPanel>
-        <ui:TitleBar Title="Song bearbeiten" ShowMinimize="False" ShowMaximize="False" />
+        <ui:TitleBar Title="{l:Tr SongEdit_Title}" ShowMinimize="False" ShowMaximize="False" />
 
         <StackPanel Margin="24,8,24,24">
-            <Label Content="_Titel" Target="{Binding ElementName=TitleBox}" />
+            <Label Content="{l:Tr SongEdit_LabelTitle}" Target="{Binding ElementName=TitleBox}" />
             <ui:TextBox x:Name="TitleBox" Margin="0,0,0,12" />
 
-            <Label Content="_Interpret" Target="{Binding ElementName=ArtistBox}" />
+            <Label Content="{l:Tr SongEdit_LabelArtist}" Target="{Binding ElementName=ArtistBox}" />
             <ui:TextBox x:Name="ArtistBox" Margin="0,0,0,12" />
 
-            <Label Content="_Lizenz" Target="{Binding ElementName=LicenseBox}" />
-            <ui:TextBox x:Name="LicenseBox" Margin="0,0,0,12" PlaceholderText="Optional, z. B. CC BY 4.0" />
+            <Label Content="{l:Tr SongEdit_LabelLicense}" Target="{Binding ElementName=LicenseBox}" />
+            <ui:TextBox x:Name="LicenseBox" Margin="0,0,0,12" PlaceholderText="{l:Tr SongEdit_LicensePlaceholder}" />
 
-            <Label Content="_Namensnennung" Target="{Binding ElementName=AttributionBox}" />
-            <ui:TextBox x:Name="AttributionBox" PlaceholderText="Optional" />
+            <Label Content="{l:Tr SongEdit_LabelAttribution}" Target="{Binding ElementName=AttributionBox}" />
+            <ui:TextBox x:Name="AttributionBox" PlaceholderText="{l:Tr SongEdit_Optional}" />
 
             <TextBlock x:Name="ErrorText"
                        Margin="0,12,0,0"
                        Foreground="{DynamicResource SystemFillColorCriticalBrush}"
-                       Text="Titel und Interpret sind erforderlich."
+                       Text="{l:Tr SongEdit_Required}"
                        Visibility="Collapsed" />
 
             <StackPanel Margin="0,24,0,0" HorizontalAlignment="Right" Orientation="Horizontal">
-                <ui:Button Content="Speichern" Appearance="Primary" IsDefault="True" MinWidth="90" Click="OnSave" />
-                <ui:Button Margin="8,0,0,0" Content="Abbrechen" IsCancel="True" MinWidth="90" />
+                <ui:Button Content="{l:Tr SongEdit_Save}" Appearance="Primary" IsDefault="True" MinWidth="90" Click="OnSave" />
+                <ui:Button Margin="8,0,0,0" Content="{l:Tr Library_Cancel}" IsCancel="True" MinWidth="90" />
             </StackPanel>
         </StackPanel>
     </StackPanel>

@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using Radiosender.Controllers;
 using Radiosender.Models;
+using Radiosender.Services.Localization;
 using Wpf.Ui.Controls;
 using MessageBox = Wpf.Ui.Controls.MessageBox;
 
@@ -19,7 +20,15 @@ public partial class LibraryPage : Page
 
     private Song? Selected => SongList.SelectedItem as Song;
 
-    private void OnLoaded(object sender, RoutedEventArgs e) => Refresh();
+    private void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        Loc.Changed += OnLanguageChanged;
+        Refresh();
+    }
+
+    private void OnUnloaded(object sender, RoutedEventArgs e) => Loc.Changed -= OnLanguageChanged;
+
+    private void OnLanguageChanged(object? sender, EventArgs e) => ShowEmptyText();
 
     private void OnSearchChanged(object sender, TextChangedEventArgs e) => Refresh();
 
@@ -31,11 +40,12 @@ public partial class LibraryPage : Page
         var songs = _controller.Search(SearchBox.Text);
         SongList.ItemsSource = songs;
         GridColumns.Fit(SongList);
-        EmptyText.Text = string.IsNullOrWhiteSpace(SearchBox.Text)
-            ? "Noch keine Songs. Musik auf der Seite Import hinzufügen."
-            : "Kein Song passt zur Suche.";
         EmptyText.Visibility = songs.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        ShowEmptyText();
     }
+
+    private void ShowEmptyText() =>
+        EmptyText.Text = Loc.T(string.IsNullOrWhiteSpace(SearchBox.Text) ? "Library_Empty" : "Library_NoMatch");
 
     private void OnListKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
@@ -61,10 +71,10 @@ public partial class LibraryPage : Page
 
         var result = await new MessageBox
         {
-            Title = "Song löschen",
-            Content = $"\"{song.Title}\" von {song.Artist} aus der Bibliothek löschen?",
-            PrimaryButtonText = "Löschen",
-            CloseButtonText = "Abbrechen",
+            Title = Loc.T("Library_DeleteTitle"),
+            Content = Loc.F("Library_DeleteConfirm", song.Title, song.Artist),
+            PrimaryButtonText = Loc.T("Library_Delete"),
+            CloseButtonText = Loc.T("Library_Cancel"),
         }.ShowDialogAsync();
 
         if (result != Wpf.Ui.Controls.MessageBoxResult.Primary)

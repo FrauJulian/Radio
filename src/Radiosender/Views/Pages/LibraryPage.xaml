@@ -2,10 +2,12 @@
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-      Title="Bibliothek"
+      xmlns:l="clr-namespace:Radiosender.Views"
+      Title="{l:Tr Library_Title}"
       Foreground="{DynamicResource TextFillColorPrimaryBrush}"
       ScrollViewer.CanContentScroll="False"
-      Loaded="OnLoaded">
+      Loaded="OnLoaded"
+      Unloaded="OnUnloaded">
     <Grid Margin="24">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -17,20 +19,20 @@
             <ui:Button x:Name="DeleteButton"
                        DockPanel.Dock="Right"
                        Margin="8,0,0,0"
-                       Content="Löschen"
+                       Content="{l:Tr Library_Delete}"
                        Icon="{ui:SymbolIcon Delete24}"
                        IsEnabled="False"
                        Click="OnDelete" />
             <ui:Button x:Name="EditButton"
                        DockPanel.Dock="Right"
                        Margin="8,0,0,0"
-                       Content="Bearbeiten"
+                       Content="{l:Tr Library_Edit}"
                        Icon="{ui:SymbolIcon Edit24}"
                        IsEnabled="False"
                        Click="OnEdit" />
             <ui:TextBox x:Name="SearchBox"
-                        AutomationProperties.Name="Songs suchen"
-                        PlaceholderText="Titel oder Interpret suchen"
+                        AutomationProperties.Name="{l:Tr Library_SearchName}"
+                        PlaceholderText="{l:Tr Library_SearchPlaceholder}"
                         Icon="{ui:SymbolIcon Search24}"
                         TextChanged="OnSearchChanged" />
         </DockPanel>
@@ -38,15 +40,15 @@
         <ui:ListView x:Name="SongList"
                      Grid.Row="2"
                      SelectionMode="Single"
-                     AutomationProperties.Name="Songs"
+                     AutomationProperties.Name="{l:Tr Library_ListName}"
                      SelectionChanged="OnSelectionChanged"
                      MouseDoubleClick="OnEdit"
                      KeyDown="OnListKeyDown">
             <ui:ListView.View>
                 <ui:GridView>
-                    <ui:GridViewColumn Width="220" Header="Titel" DisplayMemberBinding="{Binding Title}" />
-                    <ui:GridViewColumn Width="160" Header="Interpret" DisplayMemberBinding="{Binding Artist}" />
-                    <ui:GridViewColumn Width="80" Header="Dauer">
+                    <ui:GridViewColumn Width="220" Header="{l:Tr Song_Title}" DisplayMemberBinding="{Binding Title}" />
+                    <ui:GridViewColumn Width="160" Header="{l:Tr Song_Artist}" DisplayMemberBinding="{Binding Artist}" />
+                    <ui:GridViewColumn Width="80" Header="{l:Tr Song_Duration}">
                         <ui:GridViewColumn.DisplayMemberBinding>
                             <Binding Path="Duration" StringFormat="m\:ss" />
                         </ui:GridViewColumn.DisplayMemberBinding>
