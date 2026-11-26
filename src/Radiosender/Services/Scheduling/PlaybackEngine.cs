@@ -1,5 +1,6 @@
 using Radiosender.Models;
 using Radiosender.Services.Audio;
+using Radiosender.Services.Localization;
 
 namespace Radiosender.Services.Scheduling;
 
@@ -203,7 +204,7 @@ public sealed class PlaybackEngine(IAudioPlayer player, Func<TimeSpan, Cancellat
             await timeout.CancelAsync();
             token.ThrowIfCancellationRequested();
             if (done == stuck)
-                ItemFailed?.Invoke(this, (item, new TimeoutException($"Der Song wurde nicht rechtzeitig fertig: {item.Title}")));
+                ItemFailed?.Invoke(this, (item, new TimeoutException(Loc.F("Scheduling_SongTimeout", item.Title))));
         }
         finally
         {

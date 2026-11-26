@@ -1,4 +1,5 @@
 using Radiosender.Models;
+using Radiosender.Services.Localization;
 
 namespace Radiosender.Services.Scheduling;
 
@@ -25,7 +26,7 @@ public class ScheduleGenerator(ScheduleOptions options, Random random)
 
         List<Song> playable = [.. songs.Where(s => s.Duration > TimeSpan.Zero)];
         if (playable.Count == 0)
-            throw new ScheduleException("Die Bibliothek enthält keine Songs zum Planen.");
+            throw new ScheduleException(Loc.T("Scheduling_NoSongs"));
 
         List<ScheduleItem> items = [];
         var firstNews = new DateTime((start.Ticks + HalfHour.Ticks - 1) / HalfHour.Ticks * HalfHour.Ticks, start.Kind);
@@ -78,7 +79,7 @@ public class ScheduleGenerator(ScheduleOptions options, Random random)
         var (picked, gap) = PickBest(options, length, target, songs);
         if (picked.Count == 0 && target < length)
             throw new ScheduleException(
-                $"Keine Song-Kombination füllt den Abschnitt ab {slotStart:HH:mm} so, dass der letzte Song pünktlich endet. Mehr Songs hinzufügen, vor allem kürzere.");
+                Loc.F("Scheduling_NoCombination", slotStart));
 
         var (ads, moderator) = Split(options, gap, adTarget, moderatorTarget);
         return Arrange(options, slotStart, picked, ads, moderator, keepFirstSongFirst: false);
@@ -91,9 +92,9 @@ public class ScheduleGenerator(ScheduleOptions options, Random random)
         ArgumentOutOfRangeException.ThrowIfNegative(index);
         ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, plan.Count);
         if (plan[index].Kind == ScheduleItemKind.News)
-            throw new ScheduleException("Nachrichten können nicht ersetzt werden.");
+            throw new ScheduleException(Loc.T("Schedule_NewsNoReplace"));
         if (requested.Duration <= TimeSpan.Zero)
-            throw new ScheduleException("Der gewünschte Song hat keine Dauer.");
+            throw new ScheduleException(Loc.T("Scheduling_NoDuration"));
 
         var slotStartIndex = LastIndexOf(plan, index, ScheduleItemKind.News); // -1 if the plan does not start with news
         var nextNewsIndex = IndexOf(plan, index, ScheduleItemKind.News);
@@ -103,7 +104,7 @@ public class ScheduleGenerator(ScheduleOptions options, Random random)
 
         if (requested.Duration > length)
             throw new ScheduleException(
-                $"\"{requested.Title}\" ({requested.Duration:m\\:ss}) passt nicht vor die Nachrichten um {slotEnd:HH:mm}; es sind nur noch {length:m\\:ss} übrig. Ein früheres Element wählen.");
+                Loc.F("Scheduling_DoesNotFit", requested.Title, requested.Duration, slotEnd, length));
 
         // Ads/talk already in this slot count against its targets.
         var options = Options;
