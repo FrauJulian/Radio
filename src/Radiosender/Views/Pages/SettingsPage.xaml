@@ -2,9 +2,11 @@
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-      Title="Einstellungen"
+      xmlns:l="clr-namespace:Radiosender.Views"
+      Title="{l:Tr Settings_Title}"
       Foreground="{DynamicResource TextFillColorPrimaryBrush}"
-      Loaded="OnLoaded">
+      Loaded="OnLoaded"
+      Unloaded="OnUnloaded">
     <Page.Resources>
         <Style x:Key="Card" TargetType="Border">
             <Setter Property="Margin" Value="0,0,0,12" />
@@ -37,6 +39,22 @@
     <StackPanel MaxWidth="640" Margin="24" HorizontalAlignment="Left">
         <ui:InfoBar x:Name="Message" Margin="0,0,0,12" IsClosable="True" IsOpen="False" />
 
+        <!-- Language: names stay in their own language so everyone finds theirs -->
+        <Border Style="{StaticResource Card}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="220" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Label VerticalAlignment="Center" Content="{l:Tr Settings_Language}" Target="{Binding ElementName=LanguageBox}" />
+                <ComboBox x:Name="LanguageBox" Grid.Column="1" Width="200" HorizontalAlignment="Left"
+                          AutomationProperties.Name="{l:Tr Settings_Language}">
+                    <ComboBoxItem Content="Deutsch" Tag="de" />
+                    <ComboBoxItem Content="English" Tag="en" />
+                </ComboBox>
+            </Grid>
+        </Border>
+
         <!-- Speaking alerts: one block per kind -->
         <Border Style="{StaticResource Card}">
             <Grid>
@@ -49,17 +67,17 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
-                <ui:ToggleSwitch x:Name="NewsAlertSwitch" Grid.ColumnSpan="2" Content="Hinweis vor Nachrichten" />
+                <ui:ToggleSwitch x:Name="NewsAlertSwitch" Grid.ColumnSpan="2" Content="{l:Tr Settings_NewsAlert}" />
                 <Label Grid.Row="1" Margin="0,12,0,0" VerticalAlignment="Center"
-                       Content="Sekunden vor dem Start"
+                       Content="{l:Tr Settings_SecondsBefore}"
                        Target="{Binding ElementName=NewsSecondsBox}"
                        IsEnabled="{Binding IsChecked, ElementName=NewsAlertSwitch}" />
                 <ui:NumberBox x:Name="NewsSecondsBox" Grid.Row="1" Grid.Column="1" Margin="0,12,0,0"
                               Style="{StaticResource Seconds}"
-                              AutomationProperties.Name="Sekunden vor Nachrichten"
+                              AutomationProperties.Name="{l:Tr Settings_NewsSecondsName}"
                               IsEnabled="{Binding IsChecked, ElementName=NewsAlertSwitch}" />
                 <CheckBox x:Name="NewsSoundBox" Grid.Row="2" Grid.ColumnSpan="2" Margin="0,8,0,0"
-                          Content="Bing-Ton abspielen"
+                          Content="{l:Tr Settings_PlayChime}"
                           IsEnabled="{Binding IsChecked, ElementName=NewsAlertSwitch}" />
             </Grid>
         </Border>
@@ -75,17 +93,17 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
-                <ui:ToggleSwitch x:Name="ModeratorAlertSwitch" Grid.ColumnSpan="2" Content="Hinweis vor Moderation" />
+                <ui:ToggleSwitch x:Name="ModeratorAlertSwitch" Grid.ColumnSpan="2" Content="{l:Tr Settings_ModeratorAlert}" />
                 <Label Grid.Row="1" Margin="0,12,0,0" VerticalAlignment="Center"
-                       Content="Sekunden vor dem Start"
+                       Content="{l:Tr Settings_SecondsBefore}"
                        Target="{Binding ElementName=ModeratorSecondsBox}"
                        IsEnabled="{Binding IsChecked, ElementName=ModeratorAlertSwitch}" />
                 <ui:NumberBox x:Name="ModeratorSecondsBox" Grid.Row="1" Grid.Column="1" Margin="0,12,0,0"
                               Style="{StaticResource Seconds}"
-                              AutomationProperties.Name="Sekunden vor Moderation"
+                              AutomationProperties.Name="{l:Tr Settings_ModeratorSecondsName}"
                               IsEnabled="{Binding IsChecked, ElementName=ModeratorAlertSwitch}" />
                 <CheckBox x:Name="ModeratorSoundBox" Grid.Row="2" Grid.ColumnSpan="2" Margin="0,8,0,0"
-                          Content="Bing-Ton abspielen"
+                          Content="{l:Tr Settings_PlayChime}"
                           IsEnabled="{Binding IsChecked, ElementName=ModeratorAlertSwitch}" />
             </Grid>
         </Border>
@@ -103,18 +121,18 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
-                <ui:TextBlock Grid.ColumnSpan="2" FontTypography="BodyStrong" Text="Audio-Ausgabe" />
+                <ui:TextBlock Grid.ColumnSpan="2" FontTypography="BodyStrong" Text="{l:Tr Settings_AudioOutput}" />
                 <Label Grid.Row="1" Margin="0,12,0,0" VerticalAlignment="Center"
-                       Content="Sendung (für andere)" Target="{Binding ElementName=BroadcastDeviceBox}" />
+                       Content="{l:Tr Settings_ForListeners}" Target="{Binding ElementName=BroadcastDeviceBox}" />
                 <ComboBox x:Name="BroadcastDeviceBox" Grid.Row="1" Grid.Column="1" Margin="0,12,0,0"
-                          AutomationProperties.Name="Ausgabegerät für die Sendung" />
+                          AutomationProperties.Name="{l:Tr Settings_BroadcastDeviceName}" />
                 <Label Grid.Row="2" Margin="0,8,0,0" VerticalAlignment="Center"
-                       Content="Für mich (Kopfhörer)" Target="{Binding ElementName=MonitorDeviceBox}" />
+                       Content="{l:Tr Settings_ForYou}" Target="{Binding ElementName=MonitorDeviceBox}" />
                 <ComboBox x:Name="MonitorDeviceBox" Grid.Row="2" Grid.Column="1" Margin="0,8,0,0"
-                          AutomationProperties.Name="Ausgabegerät für mich" />
+                          AutomationProperties.Name="{l:Tr Settings_MonitorDeviceName}" />
                 <ui:TextBlock Grid.Row="3" Grid.ColumnSpan="2" Margin="0,12,0,0" TextWrapping="Wrap"
                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                              Text="Getrennte Lautstärken für dich und für andere brauchen zwei verschiedene Geräte. Mit nur einem Gerät hörst du deinen eigenen Mix." />
+                              Text="{l:Tr Settings_DevicesHint}" />
             </Grid>
         </Border>
 
@@ -132,36 +150,36 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
-                <ui:TextBlock Grid.ColumnSpan="2" FontTypography="BodyStrong" Text="Minuten pro Stunde" />
+                <ui:TextBlock Grid.ColumnSpan="2" FontTypography="BodyStrong" Text="{l:Tr Settings_MinutesPerHour}" />
                 <Label Grid.Row="1" Margin="0,12,0,0" VerticalAlignment="Center"
-                       Content="Nachrichten" Target="{Binding ElementName=NewsMinutesBox}" />
+                       Content="{l:Tr Settings_News}" Target="{Binding ElementName=NewsMinutesBox}" />
                 <ui:NumberBox x:Name="NewsMinutesBox" Grid.Row="1" Grid.Column="1" Margin="0,12,0,0"
                               Style="{StaticResource Minutes}" Minimum="2"
-                              AutomationProperties.Name="Nachrichten-Minuten pro Stunde" />
+                              AutomationProperties.Name="{l:Tr Settings_NewsMinutesName}" />
                 <Label Grid.Row="2" Margin="0,8,0,0" VerticalAlignment="Center"
-                       Content="Moderation" Target="{Binding ElementName=ModeratorMinutesBox}" />
+                       Content="{l:Tr Settings_Moderation}" Target="{Binding ElementName=ModeratorMinutesBox}" />
                 <ui:NumberBox x:Name="ModeratorMinutesBox" Grid.Row="2" Grid.Column="1" Margin="0,8,0,0"
                               Style="{StaticResource Minutes}"
-                              AutomationProperties.Name="Moderations-Minuten pro Stunde" />
+                              AutomationProperties.Name="{l:Tr Settings_ModeratorMinutesName}" />
                 <Label Grid.Row="3" Margin="0,8,0,0" VerticalAlignment="Center"
-                       Content="Werbung" Target="{Binding ElementName=AdMinutesBox}" />
+                       Content="{l:Tr Settings_Ads}" Target="{Binding ElementName=AdMinutesBox}" />
                 <ui:NumberBox x:Name="AdMinutesBox" Grid.Row="3" Grid.Column="1" Margin="0,8,0,0"
                               Style="{StaticResource Minutes}"
-                              AutomationProperties.Name="Werbe-Minuten pro Stunde" />
+                              AutomationProperties.Name="{l:Tr Settings_AdMinutesName}" />
                 <ui:TextBlock Grid.Row="4" Grid.ColumnSpan="2" Margin="0,12,0,0" TextWrapping="Wrap"
                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                              Text="Sollwerte, zusammen höchstens 60 Minuten. Gilt für den nächsten Plan." />
+                              Text="{l:Tr Settings_MinutesHint}" />
             </Grid>
         </Border>
 
-        <!-- laut.fm: live streaming and the station's library -->
+        <!-- laut.fm: live streaming -->
         <Border Style="{StaticResource Card}">
             <StackPanel>
                 <ui:ToggleSwitch x:Name="LautFmSwitch" Content="laut.fm"
                                  Checked="OnLautFmChanged" Unchecked="OnLautFmChanged" />
                 <ui:TextBlock Margin="0,8,0,0" TextWrapping="Wrap"
                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                              Text="Sendet live auf deine laut.fm-Station und bietet ihre Musik beim Import an. Im Plan erscheint dann der Button „Live“." />
+                              Text="{l:Tr Settings_LautFmInfo}" />
                 <Grid x:Name="LautFmFields" Margin="0,4,0,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="220" />
@@ -175,57 +193,44 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <ui:TextBlock Margin="0,12,0,0" Grid.ColumnSpan="2" FontTypography="BodyStrong" Text="Live senden" />
+                    <ui:TextBlock Margin="0,12,0,0" Grid.ColumnSpan="2" FontTypography="BodyStrong" Text="{l:Tr Settings_LiveHeader}" />
                     <Label Grid.Row="1" Margin="0,8,0,0" VerticalAlignment="Center"
                            Content="Server" Target="{Binding ElementName=LautFmHostBox}" />
                     <ui:TextBox x:Name="LautFmHostBox" Grid.Row="1" Grid.Column="1" Margin="0,8,0,0"
-                                AutomationProperties.Name="laut.fm-Server" />
+                                AutomationProperties.Name="{l:Tr Settings_LautFmHostName}" />
                     <Label Grid.Row="2" Margin="0,8,0,0" VerticalAlignment="Center"
                            Content="Port" Target="{Binding ElementName=LautFmPortBox}" />
                     <ui:NumberBox x:Name="LautFmPortBox" Grid.Row="2" Grid.Column="1" Margin="0,8,0,0"
                                   Width="130" HorizontalAlignment="Left" Minimum="1" Maximum="65535"
                                   MaxDecimalPlaces="0" SmallChange="1" ClearButtonEnabled="False"
-                                  AutomationProperties.Name="laut.fm-Port" />
+                                  AutomationProperties.Name="{l:Tr Settings_LautFmPortName}" />
                     <Label Grid.Row="3" Margin="0,8,0,0" VerticalAlignment="Center"
                            Content="Mountpoint" Target="{Binding ElementName=LautFmMountBox}" />
                     <ui:TextBox x:Name="LautFmMountBox" Grid.Row="3" Grid.Column="1" Margin="0,8,0,0"
-                                AutomationProperties.Name="laut.fm-Mountpoint" />
+                                AutomationProperties.Name="{l:Tr Settings_LautFmMountName}" />
                     <Label Grid.Row="4" Margin="0,8,0,0" VerticalAlignment="Center"
-                           Content="Benutzer" Target="{Binding ElementName=LautFmUserBox}" />
+                           Content="{l:Tr Settings_User}" Target="{Binding ElementName=LautFmUserBox}" />
                     <ui:TextBox x:Name="LautFmUserBox" Grid.Row="4" Grid.Column="1" Margin="0,8,0,0"
-                                AutomationProperties.Name="laut.fm-Benutzer" />
+                                AutomationProperties.Name="{l:Tr Settings_LautFmUserName}" />
                     <Label Grid.Row="5" Margin="0,8,0,0" VerticalAlignment="Center"
-                           Content="Passwort" Target="{Binding ElementName=LautFmPasswordBox}" />
+                           Content="{l:Tr Settings_Password}" Target="{Binding ElementName=LautFmPasswordBox}" />
                     <ui:PasswordBox x:Name="LautFmPasswordBox" Grid.Row="5" Grid.Column="1" Margin="0,8,0,0"
-                                    AutomationProperties.Name="laut.fm-Passwort" />
+                                    AutomationProperties.Name="{l:Tr Settings_LautFmPasswordName}" />
                     <ui:TextBlock Grid.Row="6" Grid.ColumnSpan="2" Margin="0,8,0,0" TextWrapping="Wrap"
                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                  Text="Diese Werte stehen in Radioadmin unter „Live senden“." />
-                    <ui:TextBlock Grid.Row="7" Margin="0,16,0,0" Grid.ColumnSpan="2" FontTypography="BodyStrong" Text="Bibliothek" />
-                    <Label Grid.Row="8" Margin="0,8,0,0" VerticalAlignment="Center"
-                           Content="Stations-ID" Target="{Binding ElementName=LautFmStationBox}" />
-                    <ui:TextBox x:Name="LautFmStationBox" Grid.Row="8" Grid.Column="1" Margin="0,8,0,0"
-                                AutomationProperties.Name="laut.fm-Stations-ID" />
-                    <Label Grid.Row="9" Margin="0,8,0,0" VerticalAlignment="Center"
-                           Content="Radioadmin-Token" Target="{Binding ElementName=LautFmTokenBox}" />
-                    <ui:PasswordBox x:Name="LautFmTokenBox" Grid.Row="9" Grid.Column="1" Margin="0,8,0,0"
-                                    AutomationProperties.Name="Radioadmin-Token"
-                                    ToolTip="Nach dem Login in Radioadmin in den Entwicklertools des Browsers: Lokaler Speicher, Schlüssel laut.fm.api.token." />
+                                  Text="{l:Tr Settings_LautFmValuesHint}" />
                 </Grid>
                 <ui:TextBlock x:Name="LautFmHint" Margin="0,12,0,0" TextWrapping="Wrap"
                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                              Text="Passwort und Token werden verschlüsselt für deinen Windows-Benutzer gespeichert. Die Bibliothek nutzt eine nicht offizielle laut.fm-Schnittstelle und kann ohne Vorwarnung ausfallen." />
+                              Text="{l:Tr Settings_LautFmPasswordHint}" />
             </StackPanel>
         </Border>
 
         <StackPanel Margin="0,4,0,0" Orientation="Horizontal">
-            <ui:Button Appearance="Primary" MinWidth="110" Content="Speichern" Icon="{ui:SymbolIcon Save24}" Click="OnSave" />
-            <ui:Button Margin="8,0,0,0" MinWidth="110" Content="Zurücksetzen" Icon="{ui:SymbolIcon ArrowReset24}"
-                       ToolTip="Setzt die Standardwerte ins Formular. Mit Speichern übernehmen."
+            <ui:Button Appearance="Primary" MinWidth="110" Content="{l:Tr Settings_Save}" Icon="{ui:SymbolIcon Save24}" Click="OnSave" />
+            <ui:Button Margin="8,0,0,0" MinWidth="110" Content="{l:Tr Settings_Reset}" Icon="{ui:SymbolIcon ArrowReset24}"
+                       ToolTip="{l:Tr Settings_ResetTooltip}"
                        Click="OnReset" />
         </StackPanel>
     </StackPanel>

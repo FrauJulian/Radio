@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Radiosender.Services.Localization;
 using Radiosender.Services.Scheduling;
 
 namespace Radiosender.Services.Settings;
@@ -13,6 +14,8 @@ public record AppSettings
     private const int MaxAlertSeconds = 300;
 
     private static readonly JsonSerializerOptions WriteOptions = new() { WriteIndented = true };
+
+    public string Language { get; init; } = Loc.German;
 
     public bool NewsAlert { get; init; } = true;
 
@@ -37,8 +40,6 @@ public record AppSettings
 
     public bool LautFmEnabled { get; init; }
 
-    public string LautFmStationId { get; init; } = "";
-
     public string LautFmHost { get; init; } = "";
 
     public int LautFmPort { get; init; } = 8080;
@@ -47,20 +48,14 @@ public record AppSettings
 
     public string LautFmUser { get; init; } = "source";
 
-    // Secrets: plain in memory, DPAPI-encrypted in the file via the Protected* properties.
+    // Secret: plain in memory, DPAPI-encrypted in the file via ProtectedLautFmPassword.
     [JsonIgnore]
     public string LautFmPassword { get; init; } = "";
-
-    [JsonIgnore]
-    public string LautFmToken { get; init; } = "";
 
     [JsonInclude, JsonPropertyName("LautFmPassword")]
     private string? ProtectedLautFmPassword { get => Protect(LautFmPassword); init => LautFmPassword = Unprotect(value); }
 
-    [JsonInclude, JsonPropertyName("LautFmToken")]
-    private string? ProtectedLautFmToken { get => Protect(LautFmToken); init => LautFmToken = Unprotect(value); }
-
-    // Record ToString would leak secrets into logs/debugger.
+    // Record ToString would leak the password into logs/debugger.
     public override string ToString() => nameof(AppSettings);
 
     public static string DefaultPath { get; } = Path.Combine(
@@ -68,24 +63,24 @@ public record AppSettings
 
     public string? Validate()
     {
+        if (!Loc.IsSupported(Language))
+            return Loc.T("Settings_LanguageUnsupported");
         if (NewsAlertSeconds is < MinAlertSeconds or > MaxAlertSeconds || ModeratorAlertSeconds is < MinAlertSeconds or > MaxAlertSeconds)
-            return $"Die Hinweiszeit muss zwischen {MinAlertSeconds} und {MaxAlertSeconds} Sekunden liegen.";
+            return Loc.F("Settings_AlertSecondsRange", MinAlertSeconds, MaxAlertSeconds);
         if (NewsMinutesPerHour < 2)
-            return "Nachrichten brauchen mindestens 2 Minuten pro Stunde.";
+            return Loc.T("Settings_NewsMinMinutes");
         if (ModeratorMinutesPerHour < 0 || AdMinutesPerHour < 0)
-            return "Minuten pro Stunde dürfen nicht negativ sein.";
+            return Loc.T("Settings_MinutesNegative");
         if (NewsMinutesPerHour + ModeratorMinutesPerHour + AdMinutesPerHour > 60)
-            return "Nachrichten, Moderation und Werbung dürfen zusammen höchstens 60 Minuten pro Stunde dauern.";
+            return Loc.T("Settings_MinutesTotal");
         if (LautFmEnabled)
         {
             if (string.IsNullOrWhiteSpace(LautFmHost) || Uri.CheckHostName(LautFmHost.Trim()) == UriHostNameType.Unknown)
-                return "Für laut.fm fehlt ein gültiger Server.";
+                return Loc.T("Settings_LautFmHostMissing");
             if (LautFmPort is < 1 or > 65535)
-                return "Der laut.fm-Port muss zwischen 1 und 65535 liegen.";
+                return Loc.T("Settings_LautFmPortRange");
             if (string.IsNullOrWhiteSpace(LautFmMount))
-                return "Für laut.fm fehlt der Mountpoint.";
-            if (LautFmToken.Length > 0 && string.IsNullOrWhiteSpace(LautFmStationId))
-                return "Für die laut.fm-Bibliothek fehlt die Stations-ID.";
+                return Loc.T("Settings_LautFmMountMissing");
         }
         return null;
     }

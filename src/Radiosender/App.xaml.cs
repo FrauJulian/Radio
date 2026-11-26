@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Radiosender.Controllers;
 using Radiosender.Services.Audio;
 using Radiosender.Services.Library;
+using Radiosender.Services.Localization;
 using Radiosender.Services.Providers;
 using Radiosender.Services.Scheduling;
 using Radiosender.Services.Settings;
@@ -67,8 +68,8 @@ public partial class App : Application
     {
         base.OnStartup(e);
         _services = BuildServices();
-        // Eager: applies settings to generator and audio output before first plan.
-        _services.GetRequiredService<SettingsStore>();
+        // Eager: applies settings to generator and audio output before first plan, language before first window.
+        Loc.SetLanguage(_services.GetRequiredService<SettingsStore>().Current.Language);
         Wpf.Ui.Appearance.ApplicationThemeManager.ApplySystemTheme();
         _services.GetRequiredService<MainWindow>().Show();
     }

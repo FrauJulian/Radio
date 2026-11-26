@@ -2,6 +2,7 @@ using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using Radiosender.Services.Audio;
+using Radiosender.Services.Localization;
 using Radiosender.Services.Settings;
 using Wpf.Ui.Controls;
 
@@ -17,19 +18,41 @@ public partial class SettingsPage : Page
         InitializeComponent();
     }
 
-    private void OnLoaded(object sender, RoutedEventArgs e) => Show(_store.Current);
+    private void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        Loc.Changed -= OnLanguageChanged;
+        Loc.Changed += OnLanguageChanged;
+        Show(_store.Current);
+    }
+
+    private void OnUnloaded(object sender, RoutedEventArgs e) => Loc.Changed -= OnLanguageChanged;
+
+    // Re-fill the code-set first entries, keep the selection.
+    private void OnLanguageChanged(object? sender, EventArgs e)
+    {
+        var (broadcast, monitor) = (BroadcastDeviceBox.SelectedIndex, MonitorDeviceBox.SelectedIndex);
+        FillDevices();
+        BroadcastDeviceBox.SelectedIndex = broadcast;
+        MonitorDeviceBox.SelectedIndex = monitor;
+    }
+
+    private List<string> _devices = [];
 
     // Index 0 of each list = no device name (null).
-    private const string DefaultDevice = "Windows-Standardgerät";
-    private const string NoDevice = "Kein eigenes Gerät";
+    private void FillDevices()
+    {
+        BroadcastDeviceBox.ItemsSource = _devices.Prepend(Loc.T("Settings_DefaultDevice")).ToList();
+        MonitorDeviceBox.ItemsSource = _devices.Prepend(Loc.T("Settings_NoDevice")).ToList();
+    }
 
     private void Show(AppSettings settings)
     {
-        var devices = ProgramOutput.DeviceNames().ToList();
-        BroadcastDeviceBox.ItemsSource = devices.Prepend(DefaultDevice).ToList();
-        MonitorDeviceBox.ItemsSource = devices.Prepend(NoDevice).ToList();
+        _devices = ProgramOutput.DeviceNames().ToList();
+        var devices = _devices;
+        FillDevices();
         BroadcastDeviceBox.SelectedIndex = devices.IndexOf(settings.BroadcastDevice ?? "") + 1;
         MonitorDeviceBox.SelectedIndex = devices.IndexOf(settings.MonitorDevice ?? "") + 1;
+        LanguageBox.SelectedIndex = settings.Language == Loc.English ? 1 : 0;
         NewsAlertSwitch.IsChecked = settings.NewsAlert;
         NewsSecondsBox.Value = settings.NewsAlertSeconds;
         NewsSoundBox.IsChecked = settings.NewsAlertSound;
@@ -45,8 +68,6 @@ public partial class SettingsPage : Page
         LautFmMountBox.Text = settings.LautFmMount;
         LautFmUserBox.Text = settings.LautFmUser;
         LautFmPasswordBox.Password = settings.LautFmPassword;
-        LautFmStationBox.Text = settings.LautFmStationId;
-        LautFmTokenBox.Password = settings.LautFmToken;
         OnLautFmChanged(this, new RoutedEventArgs());
     }
 
@@ -58,6 +79,7 @@ public partial class SettingsPage : Page
 
     private AppSettings Read() => new()
     {
+        Language = (LanguageBox.SelectedItem as ComboBoxItem)?.Tag as string ?? Loc.German,
         NewsAlert = NewsAlertSwitch.IsChecked == true,
         NewsAlertSeconds = (int)(NewsSecondsBox.Value ?? Defaults.NewsAlertSeconds),
         NewsAlertSound = NewsSoundBox.IsChecked == true,
@@ -75,8 +97,6 @@ public partial class SettingsPage : Page
         LautFmMount = LautFmMountBox.Text.Trim(),
         LautFmUser = LautFmUserBox.Text.Trim(),
         LautFmPassword = LautFmPasswordBox.Password,
-        LautFmStationId = LautFmStationBox.Text.Trim(),
-        LautFmToken = LautFmTokenBox.Password.Trim(),
     };
 
     private void OnSave(object sender, RoutedEventArgs e)
@@ -84,29 +104,30 @@ public partial class SettingsPage : Page
         var settings = Read();
         if (settings.Validate() is { } problem)
         {
-            ShowMessage(InfoBarSeverity.Error, "Nicht gespeichert", problem);
+            ShowMessage(InfoBarSeverity.Error, Loc.T("Settings_NotSaved"), problem);
             return;
         }
 
         try
         {
             _store.Save(settings);
-            ShowMessage(InfoBarSeverity.Success, "Gespeichert", "Minuten pro Stunde gelten für den nächsten Plan.");
+            Loc.SetLanguage(settings.Language);
+            ShowMessage(InfoBarSeverity.Success, Loc.T("Settings_Saved"), Loc.T("Settings_SavedDetail"));
         }
         catch (NAudio.MmException)
         {
-            ShowMessage(InfoBarSeverity.Error, "Nicht gespeichert", "Ein gewähltes Audiogerät konnte nicht geöffnet werden. Die bisherigen Geräte bleiben aktiv.");
+            ShowMessage(InfoBarSeverity.Error, Loc.T("Settings_NotSaved"), Loc.T("Settings_AudioDeviceFailed"));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            ShowMessage(InfoBarSeverity.Error, "Nicht gespeichert", ex.Message);
+            ShowMessage(InfoBarSeverity.Error, Loc.T("Settings_NotSaved"), ex.Message);
         }
     }
 
     private void OnReset(object sender, RoutedEventArgs e)
     {
         Show(Defaults);
-        ShowMessage(InfoBarSeverity.Informational, "Standardwerte eingesetzt", "Mit Speichern übernehmen.");
+        ShowMessage(InfoBarSeverity.Informational, Loc.T("Settings_DefaultsApplied"), Loc.T("Settings_DefaultsApplyHint"));
     }
 
     private void ShowMessage(InfoBarSeverity severity, string title, string text)
