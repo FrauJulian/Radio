@@ -1,6 +1,7 @@
 using System.IO;
 using NAudio.Wave;
 using Radiosender.Models;
+using Radiosender.Services.Localization;
 
 namespace Radiosender.Services.Library;
 
@@ -15,7 +16,7 @@ public class SongImportService(SongRepository songs, string musicDirectory)
     public Song Import(string sourcePath)
     {
         if (!SupportedExtensions.Contains(Path.GetExtension(sourcePath).ToLowerInvariant()))
-            throw new SongImportException("Nur MP3- und WAV-Dateien werden unterstützt.");
+            throw new SongImportException(Loc.T("Song_OnlyMp3Wav"));
 
         Directory.CreateDirectory(musicDirectory);
         var targetPath = GetUniqueTargetPath(Path.GetFileName(sourcePath));
@@ -25,7 +26,7 @@ public class SongImportService(SongRepository songs, string musicDirectory)
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
-            throw new SongImportException($"Die Datei konnte nicht gelesen werden: {e.Message}", e);
+            throw new SongImportException(Loc.F("Song_ReadFailed", e.Message), e);
         }
 
         try
@@ -71,11 +72,11 @@ public class SongImportService(SongRepository songs, string musicDirectory)
         catch (Exception e)
         {
             // NAudio/Media Foundation throw many unrelated types on corrupt files.
-            throw new SongImportException("Die Datei ist keine lesbare MP3- oder WAV-Datei.", e);
+            throw new SongImportException(Loc.T("Song_NotReadable"), e);
         }
 
         if (duration <= TimeSpan.Zero)
-            throw new SongImportException("Die Datei enthält kein Audio.");
+            throw new SongImportException(Loc.T("Song_NoAudio"));
         return duration;
     }
 

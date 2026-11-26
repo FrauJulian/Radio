@@ -1,3 +1,5 @@
+using Radiosender.Services.Localization;
+
 namespace Radiosender.Models;
 
 public record MusicTrack
@@ -21,5 +23,5 @@ public record MusicTrack
 
     public bool CanImport => Duration is not null;
 
-    public string DurationText => Duration?.ToString(@"m\:ss") ?? "unbekannt";
+    public string DurationText => Duration?.ToString(@"m\:ss") ?? Loc.T("Song_DurationUnknown");
 }

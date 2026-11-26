@@ -1,6 +1,7 @@
 using System.IO;
 using System.Net.Http;
 using Radiosender.Models;
+using Radiosender.Services.Localization;
 
 namespace Radiosender.Services.Providers;
 
@@ -20,7 +21,7 @@ public class TrackDownloader(HttpClient http, string musicFolder)
     public async Task<string> DownloadAsync(MusicTrack track, CancellationToken cancellationToken = default)
     {
         if (!Uri.TryCreate(track.Url, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps)
-            throw new MusicProviderException("Nur https-Downloads sind erlaubt.");
+            throw new MusicProviderException(Loc.T("Provider_HttpsOnly"));
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(DownloadTimeout);
@@ -29,9 +30,9 @@ public class TrackDownloader(HttpClient http, string musicFolder)
         {
             using var response = await http.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
             if (!response.IsSuccessStatusCode)
-                throw new MusicProviderException($"Der Server hat HTTP {(int)response.StatusCode} geliefert.");
+                throw new MusicProviderException(Loc.F("Provider_ServerHttp", (int)response.StatusCode));
             if (response.Content.Headers.ContentLength > MaxDownloadBytes)
-                throw new MusicProviderException("Die Datei ist größer als 50 MB.");
+                throw new MusicProviderException(Loc.T("Provider_TooLarge"));
 
             Directory.CreateDirectory(musicFolder);
             await using var file = CreateUniqueFile(track, out path);
@@ -43,11 +44,11 @@ public class TrackDownloader(HttpClient http, string musicFolder)
             {
                 total += read;
                 if (total > MaxDownloadBytes)
-                    throw new MusicProviderException("Die Datei ist größer als 50 MB.");
+                    throw new MusicProviderException(Loc.T("Provider_TooLarge"));
                 await file.WriteAsync(buffer.AsMemory(0, read), timeout.Token);
             }
             if (total == 0)
-                throw new MusicProviderException("Der Download war leer.");
+                throw new MusicProviderException(Loc.T("Provider_EmptyDownload"));
             return path;
         }
         catch (Exception e)
@@ -58,8 +59,8 @@ public class TrackDownloader(HttpClient http, string musicFolder)
             if (e is MusicProviderException || cancellationToken.IsCancellationRequested)
                 throw;
             throw new MusicProviderException(e is OperationCanceledException
-                ? "Download fehlgeschlagen: Zeitüberschreitung der Anfrage."
-                : $"Download fehlgeschlagen: {e.Message}", e);
+                ? Loc.T("Provider_DownloadTimeout")
+                : Loc.F("Provider_DownloadFailed", e.Message), e);
         }
     }
 

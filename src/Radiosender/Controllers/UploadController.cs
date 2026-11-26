@@ -1,11 +1,12 @@
 using Radiosender.Models;
 using Radiosender.Services.Library;
+using Radiosender.Services.Localization;
 
 namespace Radiosender.Controllers;
 
 public class UploadController(SongImportService importService)
 {
-    public static string FileDialogFilter { get; } = "Audiodateien (*.mp3;*.wav)|*.mp3;*.wav";
+    public static string FileDialogFilter => Loc.T("Import_FileFilter");
 
     // Never throws: batch continues with next file.
     public UploadResult Upload(string filePath)
@@ -13,7 +14,7 @@ public class UploadController(SongImportService importService)
         try
         {
             var song = importService.Import(filePath);
-            return new UploadResult(true, $"\"{song.Title}\" ({(int)song.Duration.TotalMinutes}:{song.Duration.Seconds:00}) wurde zur Bibliothek hinzugefügt.", song);
+            return new UploadResult(true, Loc.F("Import_FileAdded", song.Title, $"{(int)song.Duration.TotalMinutes}:{song.Duration.Seconds:00}"), song);
         }
         catch (SongImportException e)
         {
@@ -21,7 +22,7 @@ public class UploadController(SongImportService importService)
         }
         catch (Exception e)
         {
-            return new UploadResult(false, $"Der Song konnte nicht gespeichert werden: {e.Message}");
+            return new UploadResult(false, Loc.F("Import_SaveFailed", e.Message));
         }
     }
 }
