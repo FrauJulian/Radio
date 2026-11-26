@@ -3,6 +3,7 @@ using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 using Radiosender.Controllers;
 using Radiosender.Models;
+using Radiosender.Services.Localization;
 using Radiosender.Services.Settings;
 using Radiosender.Views.Pages;
 using Wpf.Ui.Controls;
@@ -42,9 +43,9 @@ public partial class MainWindow : FluentWindow
             PlayBing();
         _ = new Wpf.Ui.Controls.MessageBox
         {
-            Title = "Gleich bist du dran.",
-            Content = item.Title.Length > 0 ? $"{what} um {item.Start:HH:mm:ss}: {item.Title}" : $"{what} um {item.Start:HH:mm:ss}",
-            CloseButtonText = "OK",
+            Title = Loc.T("Main_ReminderTitle"),
+            Content = item.Title.Length > 0 ? Loc.F("Main_ReminderTextTitled", what, item.Start, item.Title) : Loc.F("Main_ReminderText", what, item.Start),
+            CloseButtonText = Loc.T("Main_Ok"),
             WindowStartupLocation = System.Windows.WindowStartupLocation.CenterScreen,
             Topmost = true,
         }.ShowDialogAsync();
