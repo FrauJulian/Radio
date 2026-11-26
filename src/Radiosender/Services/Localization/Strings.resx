@@ -1,0 +1,290 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="Audio_FileNotFound" xml:space="preserve"><value>Audiodatei nicht gefunden: {0}</value></data>
+  <data name="Audio_FileUnreadable" xml:space="preserve"><value>Audiodatei kann nicht gelesen werden: {0}</value></data>
+  <data name="Audio_MicrophoneFailed" xml:space="preserve"><value>Das Mikrofon konnte nicht eingeschaltet werden: {0}</value></data>
+  <data name="Audio_NoMicrophone" xml:space="preserve"><value>Es wurde kein Mikrofon gefunden.</value></data>
+  <data name="Import_AllLicenses" xml:space="preserve"><value>Alle Lizenzen</value></data>
+  <data name="Import_ChooseFiles" xml:space="preserve"><value>Dateien auswählen...</value></data>
+  <data name="Import_ColCreator" xml:space="preserve"><value>Urheber</value></data>
+  <data name="Import_ColDetails" xml:space="preserve"><value>Details</value></data>
+  <data name="Import_ColSource" xml:space="preserve"><value>Quelle</value></data>
+  <data name="Import_ColStatus" xml:space="preserve"><value>Status</value></data>
+  <data name="Import_Downloading" xml:space="preserve"><value>Lade "{0}" herunter...</value></data>
+  <data name="Import_DownloadingMany" xml:space="preserve"><value>Lade {0} von {1} herunter: "{2}"...</value></data>
+  <data name="Import_DropHint" xml:space="preserve"><value>MP3- oder WAV-Dateien hier ablegen</value></data>
+  <data name="Import_DropZoneName" xml:space="preserve"><value>Ablagebereich für MP3- und WAV-Dateien</value></data>
+  <data name="Import_Failed" xml:space="preserve"><value>Import fehlgeschlagen</value></data>
+  <data name="Import_FailedMany" xml:space="preserve"><value>{0} von {1} Songs konnten nicht importiert werden. Die Gründe stehen in der Liste "Importiert".</value></data>
+  <data name="Import_FileAdded" xml:space="preserve"><value>"{0}" ({1}) wurde zur Bibliothek hinzugefügt.</value></data>
+  <data name="Import_FileFilter" xml:space="preserve"><value>Audiodateien (*.mp3;*.wav)|*.mp3;*.wav</value></data>
+  <data name="Import_ImportButton" xml:space="preserve"><value>In Bibliothek importieren</value></data>
+  <data name="Import_ImportCount" xml:space="preserve"><value>{0} in Bibliothek importieren</value></data>
+  <data name="Import_LicenseCount" xml:space="preserve"><value>{0} Lizenzen</value></data>
+  <data name="Import_LicensesName" xml:space="preserve"><value>Lizenzen in den Suchergebnissen</value></data>
+  <data name="Import_NoLicense" xml:space="preserve"><value>Keine Lizenz gewählt</value></data>
+  <data name="Import_NoLicenseHint" xml:space="preserve"><value>Wähle mindestens eine Lizenz für die Suche.</value></data>
+  <data name="Import_NoResults" xml:space="preserve"><value>Keine Ergebnisse</value></data>
+  <data name="Import_NothingFound" xml:space="preserve"><value>Nichts zu "{0}" gefunden.</value></data>
+  <data name="Import_NothingFoundLicenses" xml:space="preserve"><value>Nichts zu "{0}" mit den gewählten Lizenzen gefunden.</value></data>
+  <data name="Import_OpenLibrary" xml:space="preserve"><value>Bibliothek öffnen</value></data>
+  <data name="Import_Preview" xml:space="preserve"><value>Vorhören</value></data>
+  <data name="Import_PreviewFailed" xml:space="preserve"><value>Vorhören fehlgeschlagen</value></data>
+  <data name="Import_ProgressName" xml:space="preserve"><value>Import-Fortschritt</value></data>
+  <data name="Import_QueryName" xml:space="preserve"><value>Suchbegriff</value></data>
+  <data name="Import_ResultsName" xml:space="preserve"><value>Suchergebnisse</value></data>
+  <data name="Import_SaveFailed" xml:space="preserve"><value>Der Song konnte nicht gespeichert werden: {0}</value></data>
+  <data name="Import_SaveFailedSong" xml:space="preserve"><value>Der Song konnte nicht in der Bibliothek gespeichert werden.</value></data>
+  <data name="Import_Search" xml:space="preserve"><value>Suchen</value></data>
+  <data name="Import_SearchFailed" xml:space="preserve"><value>Suche fehlgeschlagen</value></data>
+  <data name="Import_Searching" xml:space="preserve"><value>Suche nach "{0}"...</value></data>
+  <data name="Import_SearchingProgress" xml:space="preserve"><value>Suche nach "{0}"... {1} von {2} Quellen fertig</value></data>
+  <data name="Import_SearchPartial" xml:space="preserve"><value>Nicht alle Quellen haben geantwortet</value></data>
+  <data name="Import_SearchPlaceholder" xml:space="preserve"><value>Freie Musik suchen, zum Beispiel "jazz piano"</value></data>
+  <data name="Import_SessionName" xml:space="preserve"><value>In dieser Sitzung importierte Songs</value></data>
+  <data name="Import_SessionTitle" xml:space="preserve"><value>Importiert</value></data>
+  <data name="Import_StatusAdded" xml:space="preserve"><value>Hinzugefügt</value></data>
+  <data name="Import_StatusFailed" xml:space="preserve"><value>Fehlgeschlagen</value></data>
+  <data name="Import_StatusInLibrary" xml:space="preserve"><value>In Bibliothek</value></data>
+  <data name="Import_StatusNoDuration" xml:space="preserve"><value>Keine Dauer</value></data>
+  <data name="Import_Stop" xml:space="preserve"><value>Stopp</value></data>
+  <data name="Import_TabComputer" xml:space="preserve"><value>Vom Computer</value></data>
+  <data name="Import_TabOnline" xml:space="preserve"><value>Online</value></data>
+  <data name="Import_Title" xml:space="preserve"><value>Import</value></data>
+  <data name="Import_Uploading" xml:space="preserve"><value>Importiere {0} von {1}: {2}</value></data>
+  <data name="ItemEdit_AddTitle" xml:space="preserve"><value>{0} hinzufügen</value></data>
+  <data name="ItemEdit_Cancel" xml:space="preserve"><value>Abbrechen</value></data>
+  <data name="ItemEdit_EditTitle" xml:space="preserve"><value>{0} bearbeiten</value></data>
+  <data name="ItemEdit_Length" xml:space="preserve"><value>_Länge (m:ss)</value></data>
+  <data name="ItemEdit_LengthError" xml:space="preserve"><value>Länge als Minuten und Sekunden eingeben, zum Beispiel 5:00.</value></data>
+  <data name="ItemEdit_Optional" xml:space="preserve"><value>Optional</value></data>
+  <data name="ItemEdit_Save" xml:space="preserve"><value>Speichern</value></data>
+  <data name="ItemEdit_TitleLabel" xml:space="preserve"><value>_Titel</value></data>
+  <data name="ItemEdit_Window" xml:space="preserve"><value>Element bearbeiten</value></data>
+  <data name="Kind_Ad" xml:space="preserve"><value>Werbung</value></data>
+  <data name="Kind_Moderator" xml:space="preserve"><value>Moderation</value></data>
+  <data name="Kind_News" xml:space="preserve"><value>Nachrichten</value></data>
+  <data name="Kind_Song" xml:space="preserve"><value>Song</value></data>
+  <data name="Library_Cancel" xml:space="preserve"><value>Abbrechen</value></data>
+  <data name="Library_Delete" xml:space="preserve"><value>Löschen</value></data>
+  <data name="Library_DeleteConfirm" xml:space="preserve"><value>"{0}" von {1} aus der Bibliothek löschen?</value></data>
+  <data name="Library_DeleteTitle" xml:space="preserve"><value>Song löschen</value></data>
+  <data name="Library_Edit" xml:space="preserve"><value>Bearbeiten</value></data>
+  <data name="Library_Empty" xml:space="preserve"><value>Noch keine Songs. Musik auf der Seite Import hinzufügen.</value></data>
+  <data name="Library_ListName" xml:space="preserve"><value>Songs</value></data>
+  <data name="Library_NoMatch" xml:space="preserve"><value>Kein Song passt zur Suche.</value></data>
+  <data name="Library_SearchName" xml:space="preserve"><value>Songs suchen</value></data>
+  <data name="Library_SearchPlaceholder" xml:space="preserve"><value>Titel oder Interpret suchen</value></data>
+  <data name="Library_Title" xml:space="preserve"><value>Bibliothek</value></data>
+  <data name="Live_Disabled" xml:space="preserve"><value>laut.fm ist in den Einstellungen ausgeschaltet.</value></data>
+  <data name="Main_NavImport" xml:space="preserve"><value>Import</value></data>
+  <data name="Main_NavLibrary" xml:space="preserve"><value>Bibliothek</value></data>
+  <data name="Main_NavSchedule" xml:space="preserve"><value>Sendeplan</value></data>
+  <data name="Main_NavSettings" xml:space="preserve"><value>Einstellungen</value></data>
+  <data name="Main_Ok" xml:space="preserve"><value>OK</value></data>
+  <data name="Main_ReminderText" xml:space="preserve"><value>{0} um {1:HH:mm:ss}</value></data>
+  <data name="Main_ReminderTextTitled" xml:space="preserve"><value>{0} um {1:HH:mm:ss}: {2}</value></data>
+  <data name="Main_ReminderTitle" xml:space="preserve"><value>Gleich bist du dran.</value></data>
+  <data name="Provider_AlreadyInLibrary" xml:space="preserve"><value>"{0}" ist bereits in der Bibliothek.</value></data>
+  <data name="Provider_DownloadFailed" xml:space="preserve"><value>Download fehlgeschlagen: {0}</value></data>
+  <data name="Provider_DownloadTimeout" xml:space="preserve"><value>Download fehlgeschlagen: Zeitüberschreitung der Anfrage.</value></data>
+  <data name="Provider_EmptyDownload" xml:space="preserve"><value>Der Download war leer.</value></data>
+  <data name="Provider_HttpsOnly" xml:space="preserve"><value>Nur https-Downloads sind erlaubt.</value></data>
+  <data name="Provider_HttpStatus" xml:space="preserve"><value>{0} hat HTTP {1} geliefert.</value></data>
+  <data name="Provider_NoDuration" xml:space="preserve"><value>Dieses Ergebnis hat keine Dauer und kann nicht importiert werden.</value></data>
+  <data name="Provider_RateLimit" xml:space="preserve"><value>{0}-Limit erreicht (anonym: 20 Anfragen pro Minute, 200 pro Tag). Bitte später erneut versuchen.</value></data>
+  <data name="Provider_SearchError" xml:space="preserve"><value>{0}-Suche fehlgeschlagen: {1}</value></data>
+  <data name="Provider_SearchTimeout" xml:space="preserve"><value>{0}-Suche fehlgeschlagen: Zeitüberschreitung der Anfrage.</value></data>
+  <data name="Provider_SearchUnexpected" xml:space="preserve"><value>{0}-Suche fehlgeschlagen: unerwartete Antwort.</value></data>
+  <data name="Provider_ServerHttp" xml:space="preserve"><value>Der Server hat HTTP {0} geliefert.</value></data>
+  <data name="Provider_TooLarge" xml:space="preserve"><value>Die Datei ist größer als 50 MB.</value></data>
+  <data name="Schedule_Add" xml:space="preserve"><value>Hinzufügen</value></data>
+  <data name="Schedule_AddSong" xml:space="preserve"><value>Song (aus Songwunsch)</value></data>
+  <data name="Schedule_AddTip" xml:space="preserve"><value>Fügt als übernächstes Element ein.</value></data>
+  <data name="Schedule_AtEdge" xml:space="preserve"><value>Das Element ist bereits am Rand des Plans.</value></data>
+  <data name="Schedule_ChangeFailed" xml:space="preserve"><value>Der Plan konnte nicht geändert werden</value></data>
+  <data name="Schedule_ColDuration" xml:space="preserve"><value>Dauer</value></data>
+  <data name="Schedule_ColTitle" xml:space="preserve"><value>Titel</value></data>
+  <data name="Schedule_ColType" xml:space="preserve"><value>Typ</value></data>
+  <data name="Schedule_Create" xml:space="preserve"><value>Plan erstellen</value></data>
+  <data name="Schedule_CreateFailed" xml:space="preserve"><value>Der Plan konnte nicht erstellt werden</value></data>
+  <data name="Schedule_CreateFirst" xml:space="preserve"><value>Zuerst einen Plan erstellen.</value></data>
+  <data name="Schedule_DragTip" xml:space="preserve"><value>Ziehen zum Verschieben</value></data>
+  <data name="Schedule_EditName" xml:space="preserve"><value>Ausgewähltes Element bearbeiten</value></data>
+  <data name="Schedule_EditTip" xml:space="preserve"><value>Titel und Länge bearbeiten</value></data>
+  <data name="Schedule_Empty" xml:space="preserve"><value>Noch kein Plan. Stunden wählen und Plan erstellen.</value></data>
+  <data name="Schedule_EndBroadcast" xml:space="preserve"><value>Sendung beenden</value></data>
+  <data name="Schedule_EndBroadcastFailed" xml:space="preserve"><value>Die Sendung konnte nicht beendet werden</value></data>
+  <data name="Schedule_EndItemFailed" xml:space="preserve"><value>Das Element konnte nicht beendet werden</value></data>
+  <data name="Schedule_EndNow" xml:space="preserve"><value>Jetzt beenden</value></data>
+  <data name="Schedule_EndNowTip" xml:space="preserve"><value>Beendet das laufende Element sofort; das nächste startet.</value></data>
+  <data name="Schedule_ExtendFailed" xml:space="preserve"><value>Der Plan konnte nicht verlängert werden: {0}</value></data>
+  <data name="Schedule_Finished" xml:space="preserve"><value>Sendung beendet</value></data>
+  <data name="Schedule_FinishedText" xml:space="preserve"><value>Der ganze Plan wurde gespielt.</value></data>
+  <data name="Schedule_GoLive" xml:space="preserve"><value>Live starten</value></data>
+  <data name="Schedule_HintOnAirOrOver" xml:space="preserve"><value>Dieses Element ist bereits auf Sendung oder vorbei.</value></data>
+  <data name="Schedule_HintReplaces" xml:space="preserve"><value>Ersetzt das Element um {0:HH:mm:ss}.</value></data>
+  <data name="Schedule_HintSelect" xml:space="preserve"><value>Ein kommendes Element im Plan auswählen.</value></data>
+  <data name="Schedule_Hours" xml:space="preserve"><value>Stunden</value></data>
+  <data name="Schedule_HoursName" xml:space="preserve"><value>Zu planende Stunden</value></data>
+  <data name="Schedule_ItemFailedText" xml:space="preserve"><value>"{0}" übersprungen: {1}</value></data>
+  <data name="Schedule_ItemOver" xml:space="preserve"><value>Dieses Element ist bereits vorbei. Ein späteres wählen.</value></data>
+  <data name="Schedule_ItemSkipped" xml:space="preserve"><value>Element übersprungen</value></data>
+  <data name="Schedule_LengthPositive" xml:space="preserve"><value>Die Länge muss größer als null sein.</value></data>
+  <data name="Schedule_MicForListenersName" xml:space="preserve"><value>Mikrofon für die Hörer</value></data>
+  <data name="Schedule_MicOff" xml:space="preserve"><value>Mikro aus</value></data>
+  <data name="Schedule_MicOffName" xml:space="preserve"><value>Mikrofon ausschalten, es ist auf Sendung</value></data>
+  <data name="Schedule_MicOn" xml:space="preserve"><value>Mikro ein</value></data>
+  <data name="Schedule_MicOnName" xml:space="preserve"><value>Mikrofon einschalten</value></data>
+  <data name="Schedule_Microphone" xml:space="preserve"><value>Mikrofon</value></data>
+  <data name="Schedule_MicTip" xml:space="preserve"><value>Schaltet das Mikrofon auf Sendung, auch über laufende Musik.</value></data>
+  <data name="Schedule_MicUnavailable" xml:space="preserve"><value>Mikrofon nicht verfügbar</value></data>
+  <data name="Schedule_MixListeners" xml:space="preserve"><value>Was die Hörer hören</value></data>
+  <data name="Schedule_MixYou" xml:space="preserve"><value>Was du hörst</value></data>
+  <data name="Schedule_MoveDown" xml:space="preserve"><value>Nach unten</value></data>
+  <data name="Schedule_MoveDownName" xml:space="preserve"><value>Ausgewähltes Element nach unten verschieben</value></data>
+  <data name="Schedule_MoveUp" xml:space="preserve"><value>Nach oben</value></data>
+  <data name="Schedule_MoveUpName" xml:space="preserve"><value>Ausgewähltes Element nach oben verschieben</value></data>
+  <data name="Schedule_Music" xml:space="preserve"><value>Musik</value></data>
+  <data name="Schedule_MusicForListenersName" xml:space="preserve"><value>Musik für die Hörer</value></data>
+  <data name="Schedule_MusicForMeName" xml:space="preserve"><value>Musik, die du hörst</value></data>
+  <data name="Schedule_MusicForMeTip" xml:space="preserve"><value>Dein Mikrofon hörst du nicht selbst, damit dich keine Verzögerung stört.</value></data>
+  <data name="Schedule_NewsNoReplace" xml:space="preserve"><value>Nachrichten können nicht ersetzt werden.</value></data>
+  <data name="Schedule_NoLautFm" xml:space="preserve"><value>Läuft ohne laut.fm</value></data>
+  <data name="Schedule_NoSong" xml:space="preserve"><value>Kein Song gewählt</value></data>
+  <data name="Schedule_NoSongText" xml:space="preserve"><value>Wähle zuerst unter „Songwunsch“ einen Song.</value></data>
+  <data name="Schedule_NothingOnAir" xml:space="preserve"><value>Nichts auf Sendung</value></data>
+  <data name="Schedule_NothingOnAirError" xml:space="preserve"><value>Es ist nichts auf Sendung.</value></data>
+  <data name="Schedule_Now" xml:space="preserve"><value>Jetzt</value></data>
+  <data name="Schedule_NowPlaying" xml:space="preserve"><value>Läuft gerade</value></data>
+  <data name="Schedule_OnAirLocked" xml:space="preserve"><value>Dieses Element ist auf Sendung. Es kann bearbeitet oder beendet, aber nicht verschoben oder entfernt werden.</value></data>
+  <data name="Schedule_OnAirName" xml:space="preserve"><value>Auf Sendung</value></data>
+  <data name="Schedule_OnlyNewsModeratorLength" xml:space="preserve"><value>Nur Nachrichten und Moderation können ihre Länge ändern.</value></data>
+  <data name="Schedule_PlanOver" xml:space="preserve"><value>Dieser Plan ist bereits vorbei. Einen neuen erstellen.</value></data>
+  <data name="Schedule_ProgressName" xml:space="preserve"><value>Fortschritt des aktuellen Elements</value></data>
+  <data name="Schedule_RemoveName" xml:space="preserve"><value>Ausgewähltes Element entfernen</value></data>
+  <data name="Schedule_RemoveTip" xml:space="preserve"><value>Aus dem Plan entfernen</value></data>
+  <data name="Schedule_RequestLabel" xml:space="preserve"><value>Songwunsch</value></data>
+  <data name="Schedule_RequestName" xml:space="preserve"><value>Gewünschter Song</value></data>
+  <data name="Schedule_RunMovedOn" xml:space="preserve"><value>Die Sendung ist inzwischen weitergelaufen. Erneut versuchen.</value></data>
+  <data name="Schedule_SameAsListeners" xml:space="preserve"><value>Genau wie die Hörer</value></data>
+  <data name="Schedule_SameAsListenersTip" xml:space="preserve"><value>Du hörst exakt, was die Hörer hören, auch dein Mikrofon.</value></data>
+  <data name="Schedule_SelectItem" xml:space="preserve"><value>Ein Element im Plan auswählen.</value></data>
+  <data name="Schedule_SongGone" xml:space="preserve"><value>Der Song ist nicht mehr in der Bibliothek.</value></data>
+  <data name="Schedule_SongsEditInLibrary" xml:space="preserve"><value>Songs werden in der Bibliothek bearbeitet.</value></data>
+  <data name="Schedule_Start" xml:space="preserve"><value>Start</value></data>
+  <data name="Schedule_StartFailed" xml:space="preserve"><value>Start nicht möglich</value></data>
+  <data name="Schedule_StartLiveTip" xml:space="preserve"><value>Startet den erstellten Plan und sendet live auf deine laut.fm-Station.</value></data>
+  <data name="Schedule_StartNow" xml:space="preserve"><value>Jetzt starten</value></data>
+  <data name="Schedule_StartPlanTip" xml:space="preserve"><value>Startet den erstellten Plan.</value></data>
+  <data name="Schedule_StartTimeName" xml:space="preserve"><value>Startzeit</value></data>
+  <data name="Schedule_StartTimeTip" xml:space="preserve"><value>„Jetzt“, eine volle Stunde oder eine eigene Uhrzeit wie 14:30</value></data>
+  <data name="Schedule_StartUnclear" xml:space="preserve"><value>Wähle „Jetzt“ oder eine Uhrzeit, oder tippe eine ein, zum Beispiel 14:30.</value></data>
+  <data name="Schedule_StartUnclearTitle" xml:space="preserve"><value>Startzeit unklar</value></data>
+  <data name="Schedule_Stop" xml:space="preserve"><value>Stopp</value></data>
+  <data name="Schedule_StopLiveTip" xml:space="preserve"><value>Stoppt die Wiedergabe und den Livestream zu laut.fm.</value></data>
+  <data name="Schedule_StopTip" xml:space="preserve"><value>Stoppt die Wiedergabe.</value></data>
+  <data name="Schedule_Swap" xml:space="preserve"><value>Auswahl ersetzen</value></data>
+  <data name="Schedule_SwapDone" xml:space="preserve"><value>Songwunsch eingeplant</value></data>
+  <data name="Schedule_SwapDoneText" xml:space="preserve"><value>"{0}" läuft um {1:HH:mm:ss}.</value></data>
+  <data name="Schedule_SwapFailed" xml:space="preserve"><value>Der Songwunsch konnte nicht eingeplant werden</value></data>
+  <data name="Schedule_SwapOnAirOrOver" xml:space="preserve"><value>Dieses Element ist bereits auf Sendung oder vorbei. Ein späteres wählen.</value></data>
+  <data name="Schedule_SwapWentOnAir" xml:space="preserve"><value>Dieses Element ist inzwischen auf Sendung gegangen. Ein späteres wählen.</value></data>
+  <data name="Schedule_Title" xml:space="preserve"><value>Sendeplan</value></data>
+  <data name="Schedule_Unlimited" xml:space="preserve"><value>Unbegrenzt</value></data>
+  <data name="Schedule_UnlimitedTip" xml:space="preserve"><value>Ohne Ende: Die nächsten 5 Stunden sind geplant, jede Stunde kommt eine weitere dazu.</value></data>
+  <data name="Schedule_WaitingUntil" xml:space="preserve"><value>Auf Sendung um {0:HH:mm:ss}</value></data>
+  <data name="Scheduling_DoesNotFit" xml:space="preserve"><value>"{0}" ({1:m\:ss}) passt nicht vor die Nachrichten um {2:HH:mm}; es sind nur noch {3:m\:ss} übrig. Ein früheres Element wählen.</value></data>
+  <data name="Scheduling_NoCombination" xml:space="preserve"><value>Keine Song-Kombination füllt den Abschnitt ab {0:HH:mm} so, dass der letzte Song pünktlich endet. Mehr Songs hinzufügen, vor allem kürzere.</value></data>
+  <data name="Scheduling_NoDuration" xml:space="preserve"><value>Der gewünschte Song hat keine Dauer.</value></data>
+  <data name="Scheduling_NoSongs" xml:space="preserve"><value>Die Bibliothek enthält keine Songs zum Planen.</value></data>
+  <data name="Scheduling_SongTimeout" xml:space="preserve"><value>Der Song wurde nicht rechtzeitig fertig: {0}</value></data>
+  <data name="Settings_AdMinutesName" xml:space="preserve"><value>Werbe-Minuten pro Stunde</value></data>
+  <data name="Settings_Ads" xml:space="preserve"><value>Werbung</value></data>
+  <data name="Settings_AlertSecondsRange" xml:space="preserve"><value>Die Hinweiszeit muss zwischen {0} und {1} Sekunden liegen.</value></data>
+  <data name="Settings_AudioDeviceFailed" xml:space="preserve"><value>Ein gewähltes Audiogerät konnte nicht geöffnet werden. Die bisherigen Geräte bleiben aktiv.</value></data>
+  <data name="Settings_AudioOutput" xml:space="preserve"><value>Audio-Ausgabe</value></data>
+  <data name="Settings_BroadcastDeviceName" xml:space="preserve"><value>Ausgabegerät für die Hörer</value></data>
+  <data name="Settings_DefaultDevice" xml:space="preserve"><value>Windows-Standardgerät</value></data>
+  <data name="Settings_DefaultsApplied" xml:space="preserve"><value>Standardwerte eingesetzt</value></data>
+  <data name="Settings_DefaultsApplyHint" xml:space="preserve"><value>Mit Speichern übernehmen.</value></data>
+  <data name="Settings_DevicesHint" xml:space="preserve"><value>Getrennte Lautstärken für die Hörer und für dich brauchen zwei verschiedene Geräte. Mit nur einem Gerät hörst du die Einstellungen von „Was du hörst“.</value></data>
+  <data name="Settings_ForListeners" xml:space="preserve"><value>Für die Hörer</value></data>
+  <data name="Settings_ForYou" xml:space="preserve"><value>Für dich</value></data>
+  <data name="Settings_Language" xml:space="preserve"><value>Sprache</value></data>
+  <data name="Settings_LanguageUnsupported" xml:space="preserve"><value>Diese Sprache wird nicht unterstützt.</value></data>
+  <data name="Settings_LautFmHostMissing" xml:space="preserve"><value>Für laut.fm fehlt ein gültiger Server.</value></data>
+  <data name="Settings_LautFmHostName" xml:space="preserve"><value>laut.fm-Server</value></data>
+  <data name="Settings_LautFmInfo" xml:space="preserve"><value>Sendet live auf deine laut.fm-Station. Der Start-Button im Sendeplan heißt dann „Live starten“.</value></data>
+  <data name="Settings_LautFmMountMissing" xml:space="preserve"><value>Für laut.fm fehlt der Mountpoint.</value></data>
+  <data name="Settings_LautFmMountName" xml:space="preserve"><value>laut.fm-Mountpoint</value></data>
+  <data name="Settings_LautFmPasswordHint" xml:space="preserve"><value>Das Passwort wird verschlüsselt für deinen Windows-Benutzer gespeichert.</value></data>
+  <data name="Settings_LautFmPasswordName" xml:space="preserve"><value>laut.fm-Passwort</value></data>
+  <data name="Settings_LautFmPortName" xml:space="preserve"><value>laut.fm-Port</value></data>
+  <data name="Settings_LautFmPortRange" xml:space="preserve"><value>Der laut.fm-Port muss zwischen 1 und 65535 liegen.</value></data>
+  <data name="Settings_LautFmUserName" xml:space="preserve"><value>laut.fm-Benutzer</value></data>
+  <data name="Settings_LautFmValuesHint" xml:space="preserve"><value>Diese Werte stehen in Radioadmin unter „Live senden“.</value></data>
+  <data name="Settings_LiveHeader" xml:space="preserve"><value>Live senden</value></data>
+  <data name="Settings_MinutesHint" xml:space="preserve"><value>Sollwerte, zusammen höchstens 60 Minuten. Gilt für den nächsten Plan.</value></data>
+  <data name="Settings_MinutesNegative" xml:space="preserve"><value>Minuten pro Stunde dürfen nicht negativ sein.</value></data>
+  <data name="Settings_MinutesPerHour" xml:space="preserve"><value>Minuten pro Stunde</value></data>
+  <data name="Settings_MinutesTotal" xml:space="preserve"><value>Nachrichten, Moderation und Werbung dürfen zusammen höchstens 60 Minuten pro Stunde dauern.</value></data>
+  <data name="Settings_Moderation" xml:space="preserve"><value>Moderation</value></data>
+  <data name="Settings_ModeratorAlert" xml:space="preserve"><value>Hinweis vor Moderation</value></data>
+  <data name="Settings_ModeratorMinutesName" xml:space="preserve"><value>Moderations-Minuten pro Stunde</value></data>
+  <data name="Settings_ModeratorSecondsName" xml:space="preserve"><value>Sekunden vor Moderation</value></data>
+  <data name="Settings_MonitorDeviceName" xml:space="preserve"><value>Ausgabegerät für dich</value></data>
+  <data name="Settings_News" xml:space="preserve"><value>Nachrichten</value></data>
+  <data name="Settings_NewsAlert" xml:space="preserve"><value>Hinweis vor Nachrichten</value></data>
+  <data name="Settings_NewsMinMinutes" xml:space="preserve"><value>Nachrichten brauchen mindestens 2 Minuten pro Stunde.</value></data>
+  <data name="Settings_NewsMinutesName" xml:space="preserve"><value>Nachrichten-Minuten pro Stunde</value></data>
+  <data name="Settings_NewsSecondsName" xml:space="preserve"><value>Sekunden vor Nachrichten</value></data>
+  <data name="Settings_NoDevice" xml:space="preserve"><value>Kein eigenes Gerät</value></data>
+  <data name="Settings_NotSaved" xml:space="preserve"><value>Nicht gespeichert</value></data>
+  <data name="Settings_Password" xml:space="preserve"><value>Passwort</value></data>
+  <data name="Settings_PlayChime" xml:space="preserve"><value>Bing-Ton abspielen</value></data>
+  <data name="Settings_Reset" xml:space="preserve"><value>Zurücksetzen</value></data>
+  <data name="Settings_ResetTooltip" xml:space="preserve"><value>Setzt die Standardwerte ins Formular. Mit Speichern übernehmen.</value></data>
+  <data name="Settings_Save" xml:space="preserve"><value>Speichern</value></data>
+  <data name="Settings_Saved" xml:space="preserve"><value>Gespeichert</value></data>
+  <data name="Settings_SavedDetail" xml:space="preserve"><value>Minuten pro Stunde gelten für den nächsten Plan.</value></data>
+  <data name="Settings_SecondsBefore" xml:space="preserve"><value>Sekunden vor dem Start</value></data>
+  <data name="Settings_Title" xml:space="preserve"><value>Einstellungen</value></data>
+  <data name="Settings_User" xml:space="preserve"><value>Benutzer</value></data>
+  <data name="Song_Artist" xml:space="preserve"><value>Interpret</value></data>
+  <data name="Song_Duration" xml:space="preserve"><value>Dauer</value></data>
+  <data name="Song_DurationUnknown" xml:space="preserve"><value>unbekannt</value></data>
+  <data name="Song_License" xml:space="preserve"><value>Lizenz</value></data>
+  <data name="Song_NoAudio" xml:space="preserve"><value>Die Datei enthält kein Audio.</value></data>
+  <data name="Song_NotReadable" xml:space="preserve"><value>Die Datei ist keine lesbare MP3- oder WAV-Datei.</value></data>
+  <data name="Song_OnlyMp3Wav" xml:space="preserve"><value>Nur MP3- und WAV-Dateien werden unterstützt.</value></data>
+  <data name="Song_ReadFailed" xml:space="preserve"><value>Die Datei konnte nicht gelesen werden: {0}</value></data>
+  <data name="Song_Title" xml:space="preserve"><value>Titel</value></data>
+  <data name="SongEdit_LabelArtist" xml:space="preserve"><value>_Interpret</value></data>
+  <data name="SongEdit_LabelAttribution" xml:space="preserve"><value>_Namensnennung</value></data>
+  <data name="SongEdit_LabelLicense" xml:space="preserve"><value>_Lizenz</value></data>
+  <data name="SongEdit_LabelTitle" xml:space="preserve"><value>_Titel</value></data>
+  <data name="SongEdit_LicensePlaceholder" xml:space="preserve"><value>Optional, z. B. CC BY 4.0</value></data>
+  <data name="SongEdit_Optional" xml:space="preserve"><value>Optional</value></data>
+  <data name="SongEdit_Required" xml:space="preserve"><value>Titel und Interpret sind erforderlich.</value></data>
+  <data name="SongEdit_Save" xml:space="preserve"><value>Speichern</value></data>
+  <data name="SongEdit_Title" xml:space="preserve"><value>Song bearbeiten</value></data>
+  <data name="Stream_ConnectionLost" xml:space="preserve"><value>Verbindung zu laut.fm verloren: {0}</value></data>
+  <data name="Stream_EndedUnexpectedly" xml:space="preserve"><value>Der Livestream wurde unerwartet beendet.</value></data>
+  <data name="Stream_InvalidChars" xml:space="preserve"><value>Server, Mountpoint oder Benutzer enthalten ungültige Zeichen.</value></data>
+  <data name="Stream_InvalidReply" xml:space="preserve"><value>Der Server hat ungültig geantwortet.</value></data>
+  <data name="Stream_LoginRefused" xml:space="preserve"><value>laut.fm hat die Anmeldung abgelehnt: Benutzer oder Passwort stimmen nicht.</value></data>
+  <data name="Stream_MountBusy" xml:space="preserve"><value>laut.fm nimmt gerade keinen Livestream an: Der Mountpoint ist belegt oder nicht freigeschaltet.</value></data>
+  <data name="Stream_MountMissing" xml:space="preserve"><value>Diesen Mountpoint gibt es auf dem Server nicht.</value></data>
+  <data name="Stream_NoConnection" xml:space="preserve"><value>Keine Verbindung zum laut.fm-Server: {0}</value></data>
+  <data name="Stream_NoEncoder" xml:space="preserve"><value>Windows hat keinen MP3-Encoder.</value></data>
+  <data name="Stream_NoResponse" xml:space="preserve"><value>Der laut.fm-Server antwortet nicht.</value></data>
+  <data name="Stream_NoValidReply" xml:space="preserve"><value>Der Server hat die Verbindung ohne gültige Antwort beendet.</value></data>
+  <data name="Stream_Rejected" xml:space="preserve"><value>Der Server hat den Livestream abgelehnt (HTTP {0}).</value></data>
+  <data name="Stream_TitleFailed" xml:space="preserve"><value>Der Titel konnte nicht an laut.fm gesendet werden: {0}</value></data>
+  <data name="Stream_TitleRejected" xml:space="preserve"><value>laut.fm hat den Titel nicht angenommen (HTTP {0}).</value></data>
+</root>
