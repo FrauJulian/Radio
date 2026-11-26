@@ -42,8 +42,6 @@ public partial class App : Application
         // Import page lists providers in this order.
         services.AddSingleton<IMusicProvider, OpenverseProvider>();
         services.AddSingleton<IMusicProvider, InternetArchiveProvider>();
-        services.AddSingleton<IMusicProvider>(provider => new LautFmProvider(
-            provider.GetRequiredService<HttpClient>(), () => provider.GetRequiredService<SettingsStore>().Current));
         services.AddSingleton(provider => new LiveController(
             provider.GetRequiredService<ScheduleController>(),
             provider.GetRequiredService<SettingsStore>(),

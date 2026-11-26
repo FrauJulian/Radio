@@ -3,11 +3,8 @@ using System.Net.Sockets;
 using System.Text;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
-using Radiosender.Controllers;
 using Radiosender.Models;
 using Radiosender.Services.Audio;
-using Radiosender.Services.Library;
-using Radiosender.Services.Providers;
 using Radiosender.Services.Settings;
 using Radiosender.Services.Streaming;
 
@@ -25,13 +22,10 @@ public sealed class LautFmTests : IDisposable
         LautFmMount = "/station",
         LautFmUser = "source",
         LautFmPassword = "geheim-passwort",
-        LautFmStationId = "123",
-        LautFmToken = "geheimer-token",
     };
 
     public void Dispose()
     {
-        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
         if (Directory.Exists(_directory))
             Directory.Delete(_directory, recursive: true);
     }
@@ -44,8 +38,6 @@ public sealed class LautFmTests : IDisposable
         Assert.Contains("Server", (Live with { LautFmHost = "" }).Validate());
         Assert.Contains("Port", (Live with { LautFmPort = 0 }).Validate());
         Assert.Contains("Mountpoint", (Live with { LautFmMount = " " }).Validate());
-        Assert.Contains("Stations-ID", (Live with { LautFmStationId = "" }).Validate());
-        Assert.Null((Live with { LautFmStationId = "", LautFmToken = "" }).Validate()); // live only, no library
     }
 
     [Fact]
@@ -58,7 +50,6 @@ public sealed class LautFmTests : IDisposable
         var loaded = AppSettings.Load(file);
 
         Assert.DoesNotContain(Live.LautFmPassword, text);
-        Assert.DoesNotContain(Live.LautFmToken, text);
         Assert.Contains("\"LautFmPassword\"", text);
         Assert.Equal(Live, loaded);
         Assert.Equal("geheim-passwort", loaded.LautFmPassword);
@@ -70,12 +61,11 @@ public sealed class LautFmTests : IDisposable
     {
         var file = Path.Combine(_directory, "settings.json");
         Directory.CreateDirectory(_directory);
-        System.IO.File.WriteAllText(file, """{"LautFmPassword":"bm90IGVuY3J5cHRlZA==","LautFmToken":"%%%"}""");
+        System.IO.File.WriteAllText(file, """{"LautFmPassword":"bm90IGVuY3J5cHRlZA=="}""");
 
         var loaded = AppSettings.Load(file);
 
         Assert.Equal("", loaded.LautFmPassword);
-        Assert.Equal("", loaded.LautFmToken);
     }
 
     [Fact]
@@ -175,61 +165,6 @@ public sealed class LautFmTests : IDisposable
         Assert.Equal("Basic", sent.Headers.Authorization!.Scheme);
     }
 
-    [Fact]
-    public async Task Provider_SearchesTitleAndArtistWithTheToken()
-    {
-        var requests = new List<HttpRequestMessage>();
-        var provider = new LautFmProvider(new HttpClient(new FakeHandler(request =>
-        {
-            lock (requests)
-                requests.Add(request);
-            return Json("""
-                {"tracks":[
-                  {"id":7,"title":"Sommer","artist":"Band","duration":184,"_links":{"prelisten_authless":{"href":"/tracks/7/prelisten"}}},
-                  {"id":8,"title":"Ohne Link","artist":"Band","duration":100,"_links":{}},
-                  {"id":9,"title":"Unsicher","artist":"Band","duration":100,"_links":{"prelisten_authless":{"href":"http://example.test/9.mp3"}}}
-                ],"_links":{}}
-                """);
-        })), () => Live);
-
-        var tracks = await provider.SearchAsync("Sommer");
-
-        var track = Assert.Single(tracks); // the same track from both searches, once; links that are missing or not https are skipped
-        Assert.Equal("lautfm:7", track.Id);
-        Assert.Equal("Sommer", track.Title);
-        Assert.Equal("Band", track.Creator);
-        Assert.Equal(TimeSpan.FromSeconds(184), track.Duration);
-        Assert.Equal("https://api.radioadmin.laut.fm/tracks/7/prelisten", track.Url);
-        Assert.Equal(2, requests.Count);
-        Assert.All(requests, r => Assert.Equal("Bearer geheimer-token", r.Headers.Authorization!.ToString()));
-        Assert.Contains(requests, r => r.RequestUri!.AbsoluteUri == "https://search.api.radioadmin.laut.fm/stations/123/tracks?title=Sommer");
-        Assert.Contains(requests, r => r.RequestUri!.AbsoluteUri == "https://search.api.radioadmin.laut.fm/stations/123/tracks?artist=Sommer");
-    }
-
-    [Fact]
-    public async Task Provider_ExplainsMissingOrRefusedLogin()
-    {
-        var refused = new LautFmProvider(new HttpClient(new FakeHandler(_ => new HttpResponseMessage(HttpStatusCode.Unauthorized))), () => Live);
-        var missing = new LautFmProvider(new HttpClient(new FakeHandler(_ => Json("{}"))), () => Live with { LautFmToken = "" });
-
-        Assert.Contains("Token", (await Assert.ThrowsAsync<MusicProviderException>(() => refused.SearchAsync("x"))).Message);
-        Assert.Contains("Token", (await Assert.ThrowsAsync<MusicProviderException>(() => missing.SearchAsync("x"))).Message);
-    }
-
-    [Fact]
-    public void ImportPage_ListsLautFmOnlyWhileSwitchedOn()
-    {
-        var settings = Live with { LautFmEnabled = false };
-        var lautFm = new LautFmProvider(new HttpClient(new FakeHandler(_ => Json("{}"))), () => settings);
-        var http = new HttpClient(new FakeHandler(_ => Json("{}")));
-        var controller = new OnlineImportController(
-            [new OpenverseProvider(http), lautFm], new TrackDownloader(http, _directory), new SongRepository(Path.Combine(_directory, "test.db")));
-
-        Assert.Equal(["Openverse"], controller.Providers.Select(p => p.Name));
-        settings = Live;
-        Assert.Equal(["Openverse", "laut.fm"], controller.Providers.Select(p => p.Name));
-    }
-
     // Three seconds of a tone, then nothing new: like the live feed of a quiet program.
     private static BufferedWaveProvider Feed()
     {
@@ -249,8 +184,6 @@ public sealed class LautFmTests : IDisposable
             header.Append((char)buffer[0]);
         return header.ToString();
     }
-
-    private static HttpResponseMessage Json(string json) => new(HttpStatusCode.OK) { Content = new StringContent(json) };
 
     private sealed class FakeHandler(Func<HttpRequestMessage, HttpResponseMessage> respond) : HttpMessageHandler
     {
