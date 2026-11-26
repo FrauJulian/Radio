@@ -4,6 +4,7 @@ using System.Net.Sockets;
 using System.Text;
 using NAudio.MediaFoundation;
 using NAudio.Wave;
+using Radiosender.Services.Localization;
 
 namespace Radiosender.Services.Streaming;
 
@@ -33,7 +34,7 @@ public sealed class IcecastStream : IDisposable
         // Security: values go into request line/headers; a line break would inject headers.
         if (new[] { target.Host, target.Path, target.User }.Any(value => value.Any(c => char.IsWhiteSpace(c) || char.IsControl(c)))
             || target.User.Contains(':'))
-            throw new LiveStreamException("Server, Mountpoint oder Benutzer enthalten ungültige Zeichen.");
+            throw new LiveStreamException(Loc.T("Stream_InvalidChars"));
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(ConnectTimeout);
@@ -58,10 +59,10 @@ public sealed class IcecastStream : IDisposable
             {
                 throw new LiveStreamException(status switch
                 {
-                    401 => "laut.fm hat die Anmeldung abgelehnt: Benutzer oder Passwort stimmen nicht.",
-                    403 => "laut.fm nimmt gerade keinen Livestream an: Der Mountpoint ist belegt oder nicht freigeschaltet.",
-                    404 => "Diesen Mountpoint gibt es auf dem Server nicht.",
-                    _ => $"Der Server hat den Livestream abgelehnt (HTTP {status}).",
+                    401 => Loc.T("Stream_LoginRefused"),
+                    403 => Loc.T("Stream_MountBusy"),
+                    404 => Loc.T("Stream_MountMissing"),
+                    _ => Loc.F("Stream_Rejected", status),
                 });
             }
 
@@ -76,8 +77,8 @@ public sealed class IcecastStream : IDisposable
                 throw;
             throw ex switch
             {
-                OperationCanceledException => new LiveStreamException("Der laut.fm-Server antwortet nicht.", ex),
-                SocketException or IOException => new LiveStreamException($"Keine Verbindung zum laut.fm-Server: {ex.Message}", ex),
+                OperationCanceledException => new LiveStreamException(Loc.T("Stream_NoResponse"), ex),
+                SocketException or IOException => new LiveStreamException(Loc.F("Stream_NoConnection", ex.Message), ex),
                 _ => ex,
             };
         }
@@ -97,11 +98,11 @@ public sealed class IcecastStream : IDisposable
         {
             using var response = await http.SendAsync(request, cancellationToken);
             if (!response.IsSuccessStatusCode)
-                throw new LiveStreamException($"laut.fm hat den Titel nicht angenommen (HTTP {(int)response.StatusCode}).");
+                throw new LiveStreamException(Loc.F("Stream_TitleRejected", (int)response.StatusCode));
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException && !cancellationToken.IsCancellationRequested)
         {
-            throw new LiveStreamException($"Der Titel konnte nicht an laut.fm gesendet werden: {ex.Message}", ex);
+            throw new LiveStreamException(Loc.F("Stream_TitleFailed", ex.Message), ex);
         }
     }
 
@@ -122,17 +123,17 @@ public sealed class IcecastStream : IDisposable
             MediaFoundationApi.Startup();
             var pcm = _reader.ToSampleProvider().ToWaveProvider16();
             var mediaType = MediaFoundationEncoder.SelectMediaType(AudioSubtypes.MFAudioFormat_MP3, pcm.WaveFormat, Bitrate)
-                ?? throw new LiveStreamException("Windows hat keinen MP3-Encoder.");
+                ?? throw new LiveStreamException(Loc.T("Stream_NoEncoder"));
             using var encoder = new MediaFoundationEncoder(mediaType);
             encoder.Encode(_client.GetStream(), pcm, TranscodeContainerTypes.MFTranscodeContainerType_MP3);
             if (!_stopping)
-                Failed?.Invoke(this, "Der Livestream wurde unerwartet beendet.");
+                Failed?.Invoke(this, Loc.T("Stream_EndedUnexpectedly"));
         }
         catch (Exception ex)
         {
             // Stopping: socket closed under the encoder is expected.
             if (!_stopping)
-                Failed?.Invoke(this, ex is LiveStreamException ? ex.Message : $"Verbindung zu laut.fm verloren: {ex.Message}");
+                Failed?.Invoke(this, ex is LiveStreamException ? ex.Message : Loc.F("Stream_ConnectionLost", ex.Message));
         }
     }
 
@@ -144,13 +145,13 @@ public sealed class IcecastStream : IDisposable
         {
             var read = await network.ReadAsync(buffer, cancellationToken);
             if (read == 0 || header.Length > 8192)
-                throw new LiveStreamException("Der Server hat die Verbindung ohne gültige Antwort beendet.");
+                throw new LiveStreamException(Loc.T("Stream_NoValidReply"));
             header.Append(Encoding.ASCII.GetString(buffer, 0, read));
         }
         var parts = header.ToString().Split(' ', 3);
         return parts.Length >= 2 && int.TryParse(parts[1], out var status)
             ? status
-            : throw new LiveStreamException("Der Server hat ungültig geantwortet.");
+            : throw new LiveStreamException(Loc.T("Stream_InvalidReply"));
     }
 
     // Empty feed: wait instead of ending, so the encoder runs in real time.

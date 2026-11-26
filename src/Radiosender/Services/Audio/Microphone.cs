@@ -1,4 +1,5 @@
 using NAudio.Wave;
+using Radiosender.Services.Localization;
 
 namespace Radiosender.Services.Audio;
 
@@ -21,7 +22,7 @@ public sealed class Microphone(ProgramOutput output) : IDisposable
             if (_capture is not null)
                 return;
             if (WaveIn.DeviceCount == 0)
-                throw new InvalidOperationException("Es wurde kein Mikrofon gefunden.");
+                throw new InvalidOperationException(Loc.T("Audio_NoMicrophone"));
 
             var capture = new WaveIn { WaveFormat = new WaveFormat(44100, 16, 1), BufferMilliseconds = 30 };
             // Short dropping buffer: speech must not drift further behind.
@@ -35,7 +36,7 @@ public sealed class Microphone(ProgramOutput output) : IDisposable
             catch (Exception e) when (e is NAudio.MmException or NotSupportedException)
             {
                 capture.Dispose();
-                throw new InvalidOperationException($"Das Mikrofon konnte nicht eingeschaltet werden: {e.Message}", e);
+                throw new InvalidOperationException(Loc.F("Audio_MicrophoneFailed", e.Message), e);
             }
             _capture = capture;
         }

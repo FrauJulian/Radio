@@ -1,6 +1,7 @@
 using System.Net.Http;
 using NAudio.Wave;
 using Radiosender.Services.Audio;
+using Radiosender.Services.Localization;
 using Radiosender.Services.Settings;
 using Radiosender.Services.Streaming;
 
@@ -43,7 +44,7 @@ public class LiveController
             return;
         var settings = _settings.Current;
         if (!settings.LautFmEnabled)
-            throw new LiveStreamException("laut.fm ist in den Einstellungen ausgeschaltet.");
+            throw new LiveStreamException(Loc.T("Live_Disabled"));
         var target = IcecastTarget.From(settings);
         var feed = _output.OpenLiveFeed();
         IcecastStream stream;
