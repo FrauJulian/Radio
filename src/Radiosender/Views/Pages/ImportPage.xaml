@@ -2,9 +2,11 @@
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-      Title="Import"
+      xmlns:l="clr-namespace:Radiosender.Views"
+      Title="{l:Tr Import_Title}"
       Foreground="{DynamicResource TextFillColorPrimaryBrush}"
       ScrollViewer.CanContentScroll="False"
+      Loaded="OnLoaded"
       Unloaded="OnUnloaded">
     <Grid Margin="24">
         <Grid.RowDefinitions>
@@ -39,7 +41,7 @@
                 </Style>
             </TabControl.Resources>
             <!-- From computer -->
-            <TabItem Header="Vom Computer">
+            <TabItem Header="{l:Tr Import_TabComputer}">
                 <Grid Margin="0,12,0,0">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*" />
@@ -49,7 +51,7 @@
                     <Grid x:Name="DropZone"
                           Background="Transparent"
                           AllowDrop="True"
-                          AutomationProperties.Name="Ablagebereich für MP3- und WAV-Dateien"
+                          AutomationProperties.Name="{l:Tr Import_DropZoneName}"
                           DragEnter="OnDragOver"
                           DragOver="OnDragOver"
                           DragLeave="OnDragLeave"
@@ -65,11 +67,11 @@
                             <ui:TextBlock Margin="0,8,0,12"
                                           HorizontalAlignment="Center"
                                           FontTypography="BodyStrong"
-                                          Text="MP3- oder WAV-Dateien hier ablegen" />
+                                          Text="{l:Tr Import_DropHint}" />
                             <ui:Button x:Name="ChooseFilesButton"
                                        HorizontalAlignment="Center"
                                        Appearance="Primary"
-                                       Content="Dateien auswählen..."
+                                       Content="{l:Tr Import_ChooseFiles}"
                                        Icon="{ui:SymbolIcon FolderOpen24}"
                                        Click="OnChooseFiles" />
                         </StackPanel>
@@ -79,13 +81,13 @@
                         <ui:TextBlock x:Name="UploadProgressText" />
                         <ProgressBar x:Name="UploadProgress"
                                      Margin="0,6,0,0"
-                                     AutomationProperties.Name="Import-Fortschritt" />
+                                     AutomationProperties.Name="{l:Tr Import_ProgressName}" />
                     </StackPanel>
                 </Grid>
             </TabItem>
 
-            <!-- Online providers; the header is the provider name when there is only one -->
-            <TabItem x:Name="OnlineTab" Header="Online">
+            <!-- Searches all providers in parallel -->
+            <TabItem x:Name="OnlineTab" Header="{l:Tr Import_TabOnline}">
                 <Grid Margin="0,12,0,0">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -100,23 +102,25 @@
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
-                        <!-- Only shown when more than one provider is registered -->
-                        <ComboBox x:Name="ProviderBox"
-                                  MinWidth="140"
-                                  Margin="0,0,8,0"
-                                  AutomationProperties.Name="Musikquelle"
-                                  DisplayMemberPath="Name"
-                                  Visibility="Collapsed" />
+                        <!-- Multiselect: checkable items filled from LicenseType.All in code -->
+                        <ui:DropDownButton x:Name="LicenseButton"
+                                           MinWidth="150"
+                                           Margin="0,0,8,0"
+                                           AutomationProperties.Name="{l:Tr Import_LicensesName}">
+                            <ui:DropDownButton.Flyout>
+                                <ContextMenu x:Name="LicenseMenu" />
+                            </ui:DropDownButton.Flyout>
+                        </ui:DropDownButton>
                         <ui:TextBox x:Name="QueryBox"
                                     Grid.Column="1"
-                                    PlaceholderText="Freie Musik suchen, zum Beispiel &quot;jazz piano&quot;"
-                                    AutomationProperties.Name="Suchbegriff"
+                                    PlaceholderText="{l:Tr Import_SearchPlaceholder}"
+                                    AutomationProperties.Name="{l:Tr Import_QueryName}"
                                     KeyDown="OnQueryKeyDown" />
                         <ui:Button x:Name="SearchButton"
                                    Grid.Column="2"
                                    Margin="8,0,0,0"
                                    Appearance="Primary"
-                                   Content="Suchen"
+                                   Content="{l:Tr Import_Search}"
                                    Icon="{ui:SymbolIcon Search24}"
                                    Click="OnSearch" />
                     </Grid>
@@ -127,24 +131,25 @@
                                  Grid.Row="2"
                                  Margin="0,12,0,0"
                                  SelectionMode="Extended"
-                                 AutomationProperties.Name="Suchergebnisse"
+                                 AutomationProperties.Name="{l:Tr Import_ResultsName}"
                                  SelectionChanged="OnSelectionChanged"
                                  MouseDoubleClick="OnResultDoubleClick">
                         <ui:ListView.View>
                             <ui:GridView>
-                                <ui:GridViewColumn Width="300" Header="Titel" DisplayMemberBinding="{Binding Track.Title}" />
-                                <ui:GridViewColumn Width="180" Header="Urheber" DisplayMemberBinding="{Binding Track.Creator}" />
-                                <ui:GridViewColumn Width="80" Header="Dauer" DisplayMemberBinding="{Binding Track.DurationText}" />
-                                <ui:GridViewColumn Width="130" Header="Lizenz" DisplayMemberBinding="{Binding Track.License}" />
+                                <ui:GridViewColumn Width="300" Header="{l:Tr Song_Title}" DisplayMemberBinding="{Binding Track.Title}" />
+                                <ui:GridViewColumn Width="180" Header="{l:Tr Import_ColCreator}" DisplayMemberBinding="{Binding Track.Creator}" />
+                                <ui:GridViewColumn Width="80" Header="{l:Tr Song_Duration}" DisplayMemberBinding="{Binding Track.DurationText}" />
+                                <ui:GridViewColumn Width="130" Header="{l:Tr Song_License}" DisplayMemberBinding="{Binding Track.License}" />
+                                <ui:GridViewColumn Width="130" Header="{l:Tr Import_ColSource}" DisplayMemberBinding="{Binding Source}" />
                             </ui:GridView>
                         </ui:ListView.View>
                     </ui:ListView>
 
                     <StackPanel Grid.Row="3" Margin="0,12,0,0" Orientation="Horizontal">
-                        <ui:Button x:Name="PreviewButton" MinWidth="110" Content="Vorhören" Icon="{ui:SymbolIcon Play24}"
+                        <ui:Button x:Name="PreviewButton" MinWidth="110" Content="{l:Tr Import_Preview}" Icon="{ui:SymbolIcon Play24}"
                                    IsEnabled="False" Click="OnPreview" />
                         <ui:Button x:Name="ImportButton" ToolTipService.ShowOnDisabled="True" Margin="8,0,0,0" Appearance="Primary"
-                                   Content="In Bibliothek importieren" Icon="{ui:SymbolIcon ArrowDownload24}"
+                                   Content="{l:Tr Import_ImportButton}" Icon="{ui:SymbolIcon ArrowDownload24}"
                                    IsEnabled="False" Click="OnImport" />
                         <ui:ProgressRing x:Name="Busy"
                                          Width="20"
@@ -167,20 +172,20 @@
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
-            <ui:TextBlock VerticalAlignment="Center" FontTypography="BodyStrong" Text="Importiert" />
+            <ui:TextBlock VerticalAlignment="Center" FontTypography="BodyStrong" Text="{l:Tr Import_SessionTitle}" />
             <ui:Button HorizontalAlignment="Right"
                        Appearance="Transparent"
-                       Content="Bibliothek öffnen"
+                       Content="{l:Tr Import_OpenLibrary}"
                        Icon="{ui:SymbolIcon MusicNote224}"
                        Click="OnOpenLibrary" />
             <ui:ListView x:Name="Session"
                          Grid.Row="1"
                          MaxHeight="200"
                          Margin="0,8,0,0"
-                         AutomationProperties.Name="In dieser Sitzung importierte Songs">
+                         AutomationProperties.Name="{l:Tr Import_SessionName}">
                 <ui:ListView.View>
                     <ui:GridView>
-                        <ui:GridViewColumn Width="160" Header="Status">
+                        <ui:GridViewColumn Width="160" Header="{l:Tr Import_ColStatus}">
                             <ui:GridViewColumn.CellTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal">
@@ -188,21 +193,21 @@
                                                        Symbol="CheckmarkCircle24"
                                                        Filled="True"
                                                        Foreground="{DynamicResource SystemFillColorSuccessBrush}" />
-                                        <ui:TextBlock x:Name="Label" Margin="6,0,0,0" Text="Hinzugefügt" />
+                                        <ui:TextBlock x:Name="Label" Margin="6,0,0,0" Text="{l:Tr Import_StatusAdded}" />
                                     </StackPanel>
                                     <DataTemplate.Triggers>
                                         <DataTrigger Binding="{Binding Success}" Value="False">
                                             <Setter TargetName="Icon" Property="Symbol" Value="ErrorCircle24" />
                                             <Setter TargetName="Icon" Property="Foreground" Value="{DynamicResource SystemFillColorCriticalBrush}" />
-                                            <Setter TargetName="Label" Property="Text" Value="Fehlgeschlagen" />
+                                            <Setter TargetName="Label" Property="Text" Value="{l:Tr Import_StatusFailed}" />
                                         </DataTrigger>
                                     </DataTemplate.Triggers>
                                 </DataTemplate>
                             </ui:GridViewColumn.CellTemplate>
                         </ui:GridViewColumn>
-                        <ui:GridViewColumn Width="240" Header="Titel" DisplayMemberBinding="{Binding Title}" />
-                        <ui:GridViewColumn Width="160" Header="Interpret" DisplayMemberBinding="{Binding Artist}" />
-                        <ui:GridViewColumn Width="320" Header="Details" DisplayMemberBinding="{Binding Details}" />
+                        <ui:GridViewColumn Width="240" Header="{l:Tr Song_Title}" DisplayMemberBinding="{Binding Title}" />
+                        <ui:GridViewColumn Width="160" Header="{l:Tr Song_Artist}" DisplayMemberBinding="{Binding Artist}" />
+                        <ui:GridViewColumn Width="320" Header="{l:Tr Import_ColDetails}" DisplayMemberBinding="{Binding Details}" />
                     </ui:GridView>
                 </ui:ListView.View>
             </ui:ListView>

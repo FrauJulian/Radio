@@ -1,25 +1,45 @@
 using System.IO;
+using System.Runtime.CompilerServices;
 using Radiosender.Models;
 using Radiosender.Services.Library;
+using Radiosender.Services.Localization;
 using Radiosender.Services.Providers;
 
 namespace Radiosender.Controllers;
 
 public class OnlineImportController(IEnumerable<IMusicProvider> providers, TrackDownloader downloader, SongRepository songs)
 {
-    private readonly IReadOnlyList<IMusicProvider> _providers = [.. providers];
-
-    public IReadOnlyList<IMusicProvider> Providers => [.. _providers.Where(provider => provider.IsAvailable)];
+    public IReadOnlyList<IMusicProvider> Providers { get; } = [.. providers];
 
     public IReadOnlySet<string> ImportedIds() => songs.GetExternalIds();
+
+    // All providers at once; each result as soon as its provider is done. One failure never stops the others.
+    public async IAsyncEnumerable<ProviderResult> SearchAllAsync(string query, IReadOnlySet<string>? licenses,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        await foreach (var search in Task.WhenEach(Providers.Select(provider => SearchOneAsync(provider, query, licenses, cancellationToken))))
+            yield return await search;
+    }
+
+    private static async Task<ProviderResult> SearchOneAsync(IMusicProvider provider, string query, IReadOnlySet<string>? licenses, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return new(provider, await provider.SearchAsync(query, licenses, cancellationToken));
+        }
+        catch (MusicProviderException ex)
+        {
+            return new(provider, [], ex);
+        }
+    }
 
     /// <exception cref="MusicProviderException">Track not importable or download failed.</exception>
     public async Task<Song> ImportAsync(MusicTrack track, CancellationToken cancellationToken = default)
     {
         if (track.Duration is not { } duration)
-            throw new MusicProviderException("Dieses Ergebnis hat keine Dauer und kann nicht importiert werden.");
+            throw new MusicProviderException(Loc.T("Provider_NoDuration"));
         if (track.Id.Length > 0 && ImportedIds().Contains(track.Id))
-            throw new MusicProviderException($"\"{track.Title}\" ist bereits in der Bibliothek.");
+            throw new MusicProviderException(Loc.F("Provider_AlreadyInLibrary", track.Title));
 
         var path = await downloader.DownloadAsync(track, cancellationToken);
         var song = new Song

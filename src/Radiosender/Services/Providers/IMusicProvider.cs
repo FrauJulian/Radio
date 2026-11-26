@@ -7,8 +7,7 @@ public interface IMusicProvider
 {
     string Name { get; }
 
-    bool IsAvailable => true;
-
+    // licenses: LicenseType codes to keep; null = all.
     /// <exception cref="MusicProviderException">Search failed.</exception>
-    Task<IReadOnlyList<MusicTrack>> SearchAsync(string query, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<MusicTrack>> SearchAsync(string query, IReadOnlySet<string>? licenses = null, CancellationToken cancellationToken = default);
 }

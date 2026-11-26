@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using Radiosender.Models;
 using Radiosender.Services.Providers;
 
 namespace Radiosender.Tests;
@@ -29,6 +30,30 @@ public class MusicProviderTests
 
     private static HttpResponseMessage Json(string json, string contentType = "application/json") =>
         new(HttpStatusCode.OK) { Content = new StringContent(json, Encoding.UTF8, contentType) };
+
+    [Fact]
+    public async Task InternetArchive_KeepsOnlyTheChosenLicenses()
+    {
+        var provider = new InternetArchiveProvider(Http(uri =>
+            Json(uri.AbsolutePath == "/advancedsearch.php" ? ArchiveSearchJson : ArchiveMetadataJson)));
+
+        var publicDomain = await provider.SearchAsync("jazz", new HashSet<string> { "pdm" });
+        var none = await provider.SearchAsync("jazz", new HashSet<string>());
+
+        Assert.Equal(3, publicDomain.Count);
+        Assert.All(publicDomain, track => Assert.Equal("Public Domain Mark 1.0", track.License));
+        Assert.Empty(none);
+    }
+
+    [Theory]
+    [InlineData("CC BY-NC-SA 4.0", "by-nc-sa")]
+    [InlineData("CC BY 3.0", "by")]
+    [InlineData("CC0 1.0", "cc0")]
+    [InlineData("Public Domain Mark 1.0", "pdm")]
+    [InlineData("CC SAMPLING+ 1.0", null)]
+    [InlineData("", null)]
+    public void LicenseType_ReadsTheCodeFromTheLicenseName(string license, string? code) =>
+        Assert.Equal(code, LicenseType.CodeOf(license));
 
     [Fact]
     public async Task InternetArchive_TurnsTheMp3FilesOfEachItemIntoTracks()

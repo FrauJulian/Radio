@@ -7,8 +7,10 @@ using Microsoft.Win32;
 using NAudio.Wave;
 using Radiosender.Controllers;
 using Radiosender.Models;
+using Radiosender.Services.Localization;
 using Radiosender.Services.Providers;
 using Wpf.Ui.Controls;
+using MenuItem = System.Windows.Controls.MenuItem;
 
 namespace Radiosender.Views.Pages;
 
@@ -18,6 +20,7 @@ public partial class ImportPage : Page
     private readonly UploadController _upload;
 
     private readonly ObservableCollection<SessionRow> _session = [];
+    private readonly ObservableCollection<ResultRow> _results = [];
     // Own output: never interrupts broadcast.
     private WaveOut? _previewOutput;
     private MediaFoundationReader? _previewReader;
@@ -31,13 +34,15 @@ public partial class ImportPage : Page
         _online = online;
         _upload = upload;
         InitializeComponent();
-        var providers = _online.Providers;
-        ProviderBox.ItemsSource = providers;
-        ProviderBox.SelectedIndex = providers.Count > 0 ? 0 : -1;
-        ProviderBox.Visibility = providers.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
-        OnlineTab.Visibility = providers.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-        if (providers.Count == 1)
-            OnlineTab.Header = providers[0].Name;
+        OnlineTab.Visibility = _online.Providers.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        Results.ItemsSource = _results;
+        foreach (var license in LicenseType.All)
+        {
+            var item = new MenuItem { Header = license.Label, Tag = license.Code, IsCheckable = true, IsChecked = true, StaysOpenOnClick = true };
+            item.Click += (_, _) => ShowLicenseCount();
+            LicenseMenu.Items.Add(item);
+        }
+        ShowLicenseCount();
         Session.ItemsSource = _session;
         _session.CollectionChanged += (_, _) =>
         {
@@ -84,7 +89,7 @@ public partial class ImportPage : Page
             {
                 var path = paths[i];
                 UploadProgress.Value = i;
-                UploadProgressText.Text = $"Importiere {i + 1} von {paths.Count}: {Path.GetFileName(path)}";
+                UploadProgressText.Text = Loc.F("Import_Uploading", i + 1, paths.Count, Path.GetFileName(path));
                 var result = await Task.Run(() => _upload.Upload(path));
                 _session.Insert(0, result.Song is { } song
                     ? SessionRow.Added(song, Path.GetFileName(path))
@@ -101,6 +106,26 @@ public partial class ImportPage : Page
 
     private ResultRow? Selected => Results.SelectedItem as ResultRow;
 
+    private List<MenuItem> LicenseItems => [.. LicenseMenu.Items.OfType<MenuItem>()];
+
+    // null when all are checked: providers then also keep licenses outside LicenseType.All.
+    private IReadOnlySet<string>? CheckedLicenses()
+    {
+        var items = LicenseItems;
+        return items.All(item => item.IsChecked)
+            ? null
+            : items.Where(item => item.IsChecked).Select(item => (string)item.Tag).ToHashSet();
+    }
+
+    private void ShowLicenseCount()
+    {
+        var items = LicenseItems;
+        var count = items.Count(item => item.IsChecked);
+        LicenseButton.Content = count == items.Count ? Loc.T("Import_AllLicenses")
+            : count == 1 ? items.First(item => item.IsChecked).Header
+            : Loc.F("Import_LicenseCount", count);
+    }
+
     private void OnQueryKeyDown(object sender, KeyEventArgs e)
     {
         if (e.Key == Key.Enter)
@@ -110,28 +135,48 @@ public partial class ImportPage : Page
     private async void OnSearch(object sender, RoutedEventArgs e)
     {
         var query = QueryBox.Text.Trim();
-        if (query.Length == 0 || _busy || ProviderBox.SelectedItem is not IMusicProvider provider)
+        if (query.Length == 0 || _busy)
             return;
+        var licenses = CheckedLicenses();
+        if (licenses is { Count: 0 })
+        {
+            Show(InfoBarSeverity.Warning, Loc.T("Import_NoLicense"), Loc.T("Import_NoLicenseHint"));
+            return;
+        }
 
-        SetBusy($"Suche auf {provider.Name} nach \"{query}\"...");
+        var total = _online.Providers.Count;
+        var done = 0;
+        List<string> errors = [];
+        SetBusy(Loc.F("Import_Searching", query));
         Message.IsOpen = false;
+        _results.Clear();
         try
         {
-            var tracks = await provider.SearchAsync(query);
             var imported = _online.ImportedIds();
-            Results.ItemsSource = tracks.Select(t => ResultRow.For(t, imported)).ToList();
-            GridColumns.Fit(Results);
-            if (tracks.Count == 0)
-                Show(InfoBarSeverity.Informational, "Keine Ergebnisse", $"{provider.Name} hat nichts zu \"{query}\" gefunden.");
-        }
-        catch (MusicProviderException ex)
-        {
-            Show(InfoBarSeverity.Error, "Suche fehlgeschlagen", ex.Message);
+            await foreach (var result in _online.SearchAllAsync(query, licenses))
+            {
+                foreach (var track in result.Tracks)
+                    _results.Add(ResultRow.For(track, imported, result.Provider.Name));
+                if (result.Error is { } error)
+                    errors.Add(error.Message);
+                GridColumns.Fit(Results);
+                if (++done < total)
+                    SetBusy(Loc.F("Import_SearchingProgress", query, done, total));
+            }
         }
         finally
         {
             SetBusy(null);
         }
+
+        if (errors.Count > 0)
+            Show(_results.Count > 0 ? InfoBarSeverity.Warning : InfoBarSeverity.Error,
+                Loc.T(errors.Count == total ? "Import_SearchFailed" : "Import_SearchPartial"), string.Join(" ", errors));
+        else if (_results.Count == 0)
+            Show(InfoBarSeverity.Informational, Loc.T("Import_NoResults"),
+                licenses is null
+                    ? Loc.F("Import_NothingFound", query)
+                    : Loc.F("Import_NothingFoundLicenses", query));
     }
 
     // NAudio, not WPF MediaPlayer: MediaPlayer cannot open https.
@@ -162,7 +207,7 @@ public partial class ImportPage : Page
                 if (id != _previewId) return;
                 OnStop(this, new RoutedEventArgs());
                 if (stopped.Exception is { } error)
-                    Show(InfoBarSeverity.Error, "Vorhören fehlgeschlagen", error.Message);
+                    Show(InfoBarSeverity.Error, Loc.T("Import_PreviewFailed"), error.Message);
             });
             _previewOutput.Init(reader);
             _previewOutput.Play();
@@ -171,14 +216,14 @@ public partial class ImportPage : Page
         {
             if (id != _previewId) return;
             OnStop(this, new RoutedEventArgs());
-            Show(InfoBarSeverity.Error, "Vorhören fehlgeschlagen", ex.Message);
+            Show(InfoBarSeverity.Error, Loc.T("Import_PreviewFailed"), ex.Message);
         }
     }
 
     private void SetPreviewing(bool on)
     {
         _previewing = on;
-        PreviewButton.Content = on ? "Stopp" : "Vorhören";
+        PreviewButton.Content = Loc.T(on ? "Import_Stop" : "Import_Preview");
         PreviewButton.Icon = new SymbolIcon(on ? SymbolRegular.Stop24 : SymbolRegular.Play24);
         UpdateButtons();
     }
@@ -220,18 +265,18 @@ public partial class ImportPage : Page
             {
                 var row = rows[i];
                 SetBusy(rows.Count == 1
-                    ? $"Lade \"{row.Track.Title}\" herunter..."
-                    : $"Lade {i + 1} von {rows.Count} herunter: \"{row.Track.Title}\"...");
+                    ? Loc.F("Import_Downloading", row.Track.Title)
+                    : Loc.F("Import_DownloadingMany", i + 1, rows.Count, row.Track.Title));
                 try
                 {
                     var song = await _online.ImportAsync(row.Track);
                     _session.Insert(0, SessionRow.Added(song, song.License ?? ""));
-                    ReplaceRow(row, row with { Status = "In Bibliothek", CanImport = false });
+                    ReplaceRow(row, row with { Status = "Import_StatusInLibrary", CanImport = false });
                 }
                 catch (Exception ex) when (ex is MusicProviderException or Microsoft.EntityFrameworkCore.DbUpdateException)
                 {
                     // DB error text is technical English; usual cause: song already stored.
-                    var reason = ex is MusicProviderException ? ex.Message : "Der Song konnte nicht in der Bibliothek gespeichert werden.";
+                    var reason = ex is MusicProviderException ? ex.Message : Loc.T("Import_SaveFailedSong");
                     _session.Insert(0, SessionRow.Failed(row.Track.Title, reason));
                     failed++;
                     lastError = reason;
@@ -244,16 +289,15 @@ public partial class ImportPage : Page
         }
 
         if (failed > 0)
-            Show(InfoBarSeverity.Error, "Import fehlgeschlagen", rows.Count == 1
+            Show(InfoBarSeverity.Error, Loc.T("Import_Failed"), rows.Count == 1
                 ? lastError
-                : $"{failed} von {rows.Count} Songs konnten nicht importiert werden. Die Gründe stehen in der Liste \"Importiert\".");
+                : Loc.F("Import_FailedMany", failed, rows.Count));
     }
 
     private void ReplaceRow(ResultRow old, ResultRow updated)
     {
-        if (Results.ItemsSource is not List<ResultRow> rows || rows.IndexOf(old) is var i && i < 0) return;
-        rows[i] = updated;
-        Results.Items.Refresh();
+        if (_results.IndexOf(old) is var i and >= 0)
+            _results[i] = updated;
     }
 
     private void OnSelectionChanged(object sender, SelectionChangedEventArgs e) => UpdateButtons();
@@ -272,8 +316,8 @@ public partial class ImportPage : Page
         PreviewButton.IsEnabled = _previewing || Selected is not null;
         var importable = Importable.Count;
         ImportButton.IsEnabled = !_busy && importable > 0;
-        ImportButton.Content = importable > 1 ? $"{importable} in Bibliothek importieren" : "In Bibliothek importieren";
-        ImportButton.ToolTip = importable == 0 && Selected is { } blocked ? blocked.Status : null;
+        ImportButton.Content = importable > 1 ? Loc.F("Import_ImportCount", importable) : Loc.T("Import_ImportButton");
+        ImportButton.ToolTip = importable == 0 && Selected is { } blocked ? Loc.T(blocked.Status) : null;
     }
 
     private void Show(InfoBarSeverity severity, string title, string message)
@@ -287,14 +331,29 @@ public partial class ImportPage : Page
     private void OnOpenLibrary(object sender, RoutedEventArgs e) =>
         (Window.GetWindow(this) as MainWindow)?.RootNavigation.Navigate(typeof(LibraryPage));
 
-    private void OnUnloaded(object sender, RoutedEventArgs e) => OnStop(sender, e);
+    private void OnLoaded(object sender, RoutedEventArgs e) => Loc.Changed += OnLanguageChanged;
 
-    private sealed record ResultRow(MusicTrack Track, string Status, bool CanImport)
+    private void OnUnloaded(object sender, RoutedEventArgs e)
     {
-        public static ResultRow For(MusicTrack track, IReadOnlySet<string> imported) =>
-            imported.Contains(track.Id) ? new(track, "In Bibliothek", false)
-            : !track.CanImport ? new(track, "Keine Dauer", false)
-            : new(track, "", true);
+        Loc.Changed -= OnLanguageChanged;
+        OnStop(sender, e);
+    }
+
+    // Texts set in code and values computed into rows.
+    private void OnLanguageChanged(object? sender, EventArgs e)
+    {
+        ShowLicenseCount();
+        SetPreviewing(_previewing);
+        Results.Items.Refresh();
+        GridColumns.Fit(Results);
+    }
+
+    private sealed record ResultRow(MusicTrack Track, string Source, string Status, bool CanImport)
+    {
+        public static ResultRow For(MusicTrack track, IReadOnlySet<string> imported, string source) =>
+            imported.Contains(track.Id) ? new(track, source, "Import_StatusInLibrary", false)
+            : !track.CanImport ? new(track, source, "Import_StatusNoDuration", false)
+            : new(track, source, "", true);
     }
 
     private sealed record SessionRow(bool Success, string Title, string Artist, string Details)

@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Radiosender.Models;
+using Radiosender.Services.Localization;
 
 namespace Radiosender.Services.Providers;
 
@@ -15,16 +16,21 @@ public class OpenverseProvider(HttpClient http) : IMusicProvider
 
     public string Name => "Openverse";
 
-    public async Task<IReadOnlyList<MusicTrack>> SearchAsync(string query, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<MusicTrack>> SearchAsync(string query, IReadOnlySet<string>? licenses = null, CancellationToken cancellationToken = default)
     {
+        if (licenses is { Count: 0 })
+            return [];
         var url = $"{SearchUrl}?q={Uri.EscapeDataString(query)}&page_size={PageSize}";
+        // Server filters: full page of matches instead of a thinned-out one.
+        if (licenses is not null)
+            url += "&license=" + Uri.EscapeDataString(string.Join(',', licenses.Order()));
         try
         {
             using var response = await http.GetAsync(url, cancellationToken);
             if (response.StatusCode == HttpStatusCode.TooManyRequests)
-                throw new MusicProviderException("Openverse-Limit erreicht (anonym: 20 Anfragen pro Minute, 200 pro Tag). Bitte später erneut versuchen.");
+                throw new MusicProviderException(Loc.F("Provider_RateLimit", Name));
             if (!response.IsSuccessStatusCode)
-                throw new MusicProviderException($"Openverse hat HTTP {(int)response.StatusCode} geliefert.");
+                throw new MusicProviderException(Loc.F("Provider_HttpStatus", Name, (int)response.StatusCode));
             var page = await response.Content.ReadFromJsonAsync<SearchPage>(JsonOptions, cancellationToken);
             return page?.Results?.Select(result => result.ToMusicTrack()).ToList() ?? [];
         }
@@ -32,9 +38,9 @@ public class OpenverseProvider(HttpClient http) : IMusicProvider
         {
             throw e switch
             {
-                OperationCanceledException => new MusicProviderException("Openverse-Suche fehlgeschlagen: Zeitüberschreitung der Anfrage.", e),
-                JsonException => new MusicProviderException("Openverse-Suche fehlgeschlagen: unerwartete Antwort.", e),
-                _ => new MusicProviderException($"Openverse-Suche fehlgeschlagen: {e.Message}", e),
+                OperationCanceledException => new MusicProviderException(Loc.F("Provider_SearchTimeout", Name), e),
+                JsonException => new MusicProviderException(Loc.F("Provider_SearchUnexpected", Name), e),
+                _ => new MusicProviderException(Loc.F("Provider_SearchError", Name, e.Message), e),
             };
         }
     }

@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Radiosender.Models;
+using Radiosender.Services.Localization;
 
 namespace Radiosender.Services.Providers;
 
@@ -18,8 +19,10 @@ public partial class InternetArchiveProvider(HttpClient http) : IMusicProvider
 
     public string Name => "Internet Archive";
 
-    public async Task<IReadOnlyList<MusicTrack>> SearchAsync(string query, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<MusicTrack>> SearchAsync(string query, IReadOnlySet<string>? licenses = null, CancellationToken cancellationToken = default)
     {
+        if (licenses is { Count: 0 })
+            return [];
         // Strip Lucene operators: user input must not change the filter.
         var words = string.Join(' ', LuceneSyntax().Replace(query, " ").Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
         if (words.Length == 0)
@@ -30,10 +33,12 @@ public partial class InternetArchiveProvider(HttpClient http) : IMusicProvider
         using var json = await ProviderParsing.GetJsonAsync(http, url, Name, cancellationToken);
         if (!json.RootElement.TryGetProperty("response", out var response)
             || !response.TryGetProperty("docs", out var docs) || docs.ValueKind != JsonValueKind.Array)
-            throw new MusicProviderException($"{Name}-Suche fehlgeschlagen: unerwartete Antwort.");
+            throw new MusicProviderException(Loc.F("Provider_SearchUnexpected", Name));
 
         var perItem = await Task.WhenAll(docs.EnumerateArray().Select(doc => TracksOfAsync(doc, cancellationToken)));
-        return [.. perItem.SelectMany(tracks => tracks)];
+        // shortcut: filtered after the search, so fewer than Items results; move into the Lucene query if too few.
+        return [.. perItem.SelectMany(tracks => tracks)
+            .Where(track => licenses is null || LicenseType.CodeOf(track.License) is { } code && licenses.Contains(code))];
     }
 
     private async Task<List<MusicTrack>> TracksOfAsync(JsonElement item, CancellationToken cancellationToken)

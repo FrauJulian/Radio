@@ -92,6 +92,33 @@ public sealed class OpenverseTests : IDisposable
     }
 
     [Fact]
+    public async Task Controller_SearchesAllProvidersInParallelAndYieldsEachWhenDone()
+    {
+        var slowGate = new TaskCompletionSource<IReadOnlyList<MusicTrack>>();
+        var slow = new FakeProvider("Slow", (_, _) => slowGate.Task);
+        var failing = new FakeProvider("Failing", (_, _) => throw new MusicProviderException("kaputt"));
+        IReadOnlySet<string>? seenLicenses = null;
+        var fast = new FakeProvider("Fast", (_, licenses) => { seenLicenses = licenses; return Task.FromResult<IReadOnlyList<MusicTrack>>([Track()]); });
+        var controller = new OnlineImportController([slow, failing, fast], NewClient((_, _) => Respond(HttpStatusCode.OK)), new SongRepository(Path.Combine(_directory, "test.db")));
+        var licenses = new HashSet<string> { "by" };
+
+        List<ProviderResult> results = [];
+        await foreach (var result in controller.SearchAllAsync("jazz", licenses))
+        {
+            results.Add(result);
+            if (results.Count == 2)
+                slowGate.SetResult([Track() with { Id = "slow" }]); // slow only finishes after the others were yielded
+        }
+
+        Assert.Equal(["Failing", "Fast", "Slow"], results.Select(r => r.Provider.Name).Order());
+        Assert.Equal("Slow", results[2].Provider.Name);
+        Assert.Equal("kaputt", Assert.Single(results, r => r.Error is not null).Error!.Message);
+        Assert.Empty(results.Single(r => r.Provider == failing).Tracks);
+        Assert.Single(results.Single(r => r.Provider == fast).Tracks);
+        Assert.Same(licenses, seenLicenses);
+    }
+
+    [Fact]
     public async Task Search_ParsesResults()
     {
         Uri? requested = null;
@@ -117,6 +144,23 @@ public sealed class OpenverseTests : IDisposable
         Assert.True(first.CanImport);
         Assert.False(tracks[1].CanImport);
         Assert.Equal("CC0 1.0", tracks[1].License);
+    }
+
+    [Fact]
+    public async Task Search_SendsTheChosenLicenses()
+    {
+        var requested = new List<Uri>();
+        var client = NewProvider((request, _) =>
+        {
+            requested.Add(request.RequestUri!);
+            return Respond(HttpStatusCode.OK, new StringContent(SearchJson, Encoding.UTF8, "application/json"));
+        });
+
+        await client.SearchAsync("jazz", new HashSet<string> { "cc0", "by" });
+        var none = await client.SearchAsync("jazz", new HashSet<string>());
+
+        Assert.Equal("https://api.openverse.org/v1/audio/?q=jazz&page_size=20&license=by%2Ccc0", Assert.Single(requested).AbsoluteUri);
+        Assert.Empty(none);
     }
 
     [Fact]
@@ -227,6 +271,14 @@ public sealed class OpenverseTests : IDisposable
 
         Assert.Empty(MusicFiles());
         Assert.Empty(songs.GetAll());
+    }
+
+    private sealed class FakeProvider(string name, Func<string, IReadOnlySet<string>?, Task<IReadOnlyList<MusicTrack>>> search) : IMusicProvider
+    {
+        public string Name => name;
+
+        public Task<IReadOnlyList<MusicTrack>> SearchAsync(string query, IReadOnlySet<string>? licenses = null, CancellationToken cancellationToken = default) =>
+            search(query, licenses);
     }
 
     private sealed class FakeHandler(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> handle) : HttpMessageHandler

@@ -3,24 +3,20 @@ using System.Net;
 using System.Net.Http;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Radiosender.Services.Localization;
 
 namespace Radiosender.Services.Providers;
 
 internal static partial class ProviderParsing
 {
     /// <exception cref="MusicProviderException">Request failed or answer is not JSON.</exception>
-    public static async Task<JsonDocument> GetJsonAsync(HttpClient http, string url, string provider, CancellationToken cancellationToken, string? bearerToken = null)
+    public static async Task<JsonDocument> GetJsonAsync(HttpClient http, string url, string provider, CancellationToken cancellationToken)
     {
         try
         {
-            using var request = new HttpRequestMessage(HttpMethod.Get, url);
-            if (bearerToken is not null)
-                request.Headers.Authorization = new("Bearer", bearerToken);
-            using var response = await http.SendAsync(request, cancellationToken);
-            if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden && bearerToken is not null)
-                throw new MusicProviderException($"{provider} hat die Anmeldung abgelehnt. Den Token in den Einstellungen prüfen.");
+            using var response = await http.GetAsync(url, cancellationToken);
             if (!response.IsSuccessStatusCode)
-                throw new MusicProviderException($"{provider} hat HTTP {(int)response.StatusCode} geliefert.");
+                throw new MusicProviderException(Loc.F("Provider_HttpStatus", provider, (int)response.StatusCode));
             // Content type ignored: not every API labels JSON.
             return JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
         }
@@ -28,9 +24,9 @@ internal static partial class ProviderParsing
         {
             throw e switch
             {
-                OperationCanceledException => new MusicProviderException($"{provider}-Suche fehlgeschlagen: Zeitüberschreitung der Anfrage.", e),
-                JsonException => new MusicProviderException($"{provider}-Suche fehlgeschlagen: unerwartete Antwort.", e),
-                _ => new MusicProviderException($"{provider}-Suche fehlgeschlagen: {e.Message}", e),
+                OperationCanceledException => new MusicProviderException(Loc.F("Provider_SearchTimeout", provider), e),
+                JsonException => new MusicProviderException(Loc.F("Provider_SearchUnexpected", provider), e),
+                _ => new MusicProviderException(Loc.F("Provider_SearchError", provider, e.Message), e),
             };
         }
     }
