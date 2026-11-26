@@ -23,7 +23,6 @@ public partial class SchedulePage : Page
     private readonly DispatcherTimer _progressTimer = new() { Interval = TimeSpan.FromMilliseconds(250) };
     private bool _loading;
     private int _scrolledTo = -1;
-    private bool? _shownPlaying;
     private (bool OnAir, bool Live, bool Enabled)? _shownStart;
 
     private readonly ObservableCollection<TimelineRow> _rows = [];
@@ -96,7 +95,6 @@ public partial class SchedulePage : Page
     private void OnLanguageChanged(object? sender, EventArgs e) => Dispatcher.BeginInvoke(() =>
     {
         _shownStart = null;
-        _shownPlaying = null;
         var selected = Timeline.SelectedIndex;
         _rows.Clear();
         NowKind.Content = null; // same item again would not refresh the chip
@@ -311,20 +309,6 @@ public partial class SchedulePage : Page
                 ? "Schedule_StartLiveTip"
                 : "Schedule_StartPlanTip");
         System.Windows.Automation.AutomationProperties.SetName(StartNowButton, (string)StartNowButton.Content);
-    }
-
-    private void OnEndNow(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            _controller.EndCurrentNow();
-            Message.IsOpen = false;
-        }
-        catch (ScheduleException ex)
-        {
-            ShowMessage(InfoBarSeverity.Error, Loc.T("Schedule_EndItemFailed"), ex.Message);
-        }
-        ShowCurrent();
     }
 
     private void OnRemove(object sender, RoutedEventArgs e) => ChangeSelected(row => _controller.Remove(row.Index));
@@ -549,16 +533,6 @@ public partial class SchedulePage : Page
 
     private void OnTimelineSelectionChanged(object sender, SelectionChangedEventArgs e) => UpdateButtons();
 
-    private async void OnPlayToggle(object sender, RoutedEventArgs e)
-    {
-        var stop = _controller.IsPlaying;
-        _expectPlaying = !stop;
-        if (stop)
-            NowKind.Visibility = Visibility.Collapsed;
-        UpdateProgress();
-        await RunAsync(Loc.T("Schedule_StartFailed"), stop ? _controller.Stop : _controller.Start);
-    }
-
     // BeginInvoke, not Invoke: engine Stop waits for this pool thread -> deadlock.
     private void OnItemStarted(object? sender, int index) => Dispatcher.BeginInvoke(ShowCurrent);
 
@@ -609,17 +583,10 @@ public partial class SchedulePage : Page
     private void UpdateButtons()
     {
         var playing = _expectPlaying ?? _controller.IsPlaying;
-        PlayButton.IsEnabled = !_working && (playing || _controller.Plan.Count > 0);
         CreateButton.IsEnabled = !_working;
         // Without a plan only stopping makes sense.
         StartNowButton.IsEnabled = !_working && (OnAir || _controller.Plan.Count > 0);
         ShowStartButton();
-        if (playing != _shownPlaying)
-        {
-            _shownPlaying = playing;
-            PlayButton.Content = Loc.T(playing ? "Schedule_Stop" : "Schedule_Start");
-            PlayButton.Icon = new SymbolIcon(playing ? SymbolRegular.Stop24 : SymbolRegular.Play24);
-        }
 
         var row = Timeline.SelectedItem as TimelineRow;
 
@@ -633,7 +600,6 @@ public partial class SchedulePage : Page
         RemoveButton.IsEnabled = Editable(index);
         var onAir = !_working && playing && index >= 0 && index == current;
         EditItemButton.IsEnabled = (Editable(index) || onAir) && row!.Item.Kind != ScheduleItemKind.Song;
-        EndNowButton.IsEnabled = !_working && _expectPlaying != false && _controller.CurrentItem is not null;
 
         var blocker = row switch
         {

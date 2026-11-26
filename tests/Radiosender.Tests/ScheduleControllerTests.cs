@@ -266,32 +266,6 @@ public sealed class ScheduleControllerTests : IDisposable
     }
 
     [Fact]
-    public async Task EndCurrentNow_EndsTheItemOnAirAndStartsTheNext()
-    {
-        var (controller, started) = await OnAirWithTheFirstNewsAsync();
-        _now = _now.AddMinutes(2);
-
-        var plan = controller.EndCurrentNow();
-
-        Assert.Equal(TimeSpan.FromMinutes(2), plan[0].Duration);
-        AssertContiguousFrom(plan, plan[0].Start);
-        Assert.Equal(_now, plan[1].Start);
-        Assert.True(await started.WaitAsync(TimeSpan.FromSeconds(5)));
-        Assert.Equal(1, controller.CurrentIndex);
-        controller.Stop();
-    }
-
-    [Fact]
-    public void EndCurrentNow_WithNothingOnAirThrows()
-    {
-        AddSongs();
-        var controller = Create();
-        controller.CreatePlan(1);
-
-        Assert.Throws<ScheduleException>(() => controller.EndCurrentNow());
-    }
-
-    [Fact]
     public async Task EditItem_ChangesTheItemOnAirButItCannotBeRemoved()
     {
         var (controller, _) = await OnAirWithTheFirstNewsAsync();

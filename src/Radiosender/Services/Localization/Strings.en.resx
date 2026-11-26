@@ -120,9 +120,6 @@
   <data name="Schedule_Empty" xml:space="preserve"><value>No schedule yet. Choose the hours and create a schedule.</value></data>
   <data name="Schedule_EndBroadcast" xml:space="preserve"><value>End broadcast</value></data>
   <data name="Schedule_EndBroadcastFailed" xml:space="preserve"><value>The broadcast could not be ended</value></data>
-  <data name="Schedule_EndItemFailed" xml:space="preserve"><value>The item could not be ended</value></data>
-  <data name="Schedule_EndNow" xml:space="preserve"><value>End now</value></data>
-  <data name="Schedule_EndNowTip" xml:space="preserve"><value>Ends the current item right away; the next one starts.</value></data>
   <data name="Schedule_ExtendFailed" xml:space="preserve"><value>The schedule could not be extended: {0}</value></data>
   <data name="Schedule_Finished" xml:space="preserve"><value>Broadcast ended</value></data>
   <data name="Schedule_FinishedText" xml:space="preserve"><value>The whole schedule has been played.</value></data>
@@ -159,7 +156,6 @@
   <data name="Schedule_NoSong" xml:space="preserve"><value>No song selected</value></data>
   <data name="Schedule_NoSongText" xml:space="preserve"><value>First choose a song under “Song request”.</value></data>
   <data name="Schedule_NothingOnAir" xml:space="preserve"><value>Nothing on air</value></data>
-  <data name="Schedule_NothingOnAirError" xml:space="preserve"><value>Nothing is on air.</value></data>
   <data name="Schedule_Now" xml:space="preserve"><value>Now</value></data>
   <data name="Schedule_NowPlaying" xml:space="preserve"><value>On air now</value></data>
   <data name="Schedule_OnAirLocked" xml:space="preserve"><value>This item is on air. It can be edited or ended, but not moved or removed.</value></data>
@@ -186,7 +182,6 @@
   <data name="Schedule_StartTimeTip" xml:space="preserve"><value>“Now”, a full hour, or your own time like 14:30</value></data>
   <data name="Schedule_StartUnclear" xml:space="preserve"><value>Choose “Now” or a time, or type one, for example 14:30.</value></data>
   <data name="Schedule_StartUnclearTitle" xml:space="preserve"><value>Start time unclear</value></data>
-  <data name="Schedule_Stop" xml:space="preserve"><value>Stop</value></data>
   <data name="Schedule_StopLiveTip" xml:space="preserve"><value>Stops playback and the live stream to laut.fm.</value></data>
   <data name="Schedule_StopTip" xml:space="preserve"><value>Stops playback.</value></data>
   <data name="Schedule_Swap" xml:space="preserve"><value>Replace selection</value></data>
