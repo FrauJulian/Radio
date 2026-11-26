@@ -2,7 +2,9 @@
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-      Title="Sendeplan"
+      xmlns:models="clr-namespace:Radiosender.Models"
+      xmlns:l="clr-namespace:Radiosender.Views"
+      Title="{l:Tr Schedule_Title}"
       Foreground="{DynamicResource TextFillColorPrimaryBrush}"
       ScrollViewer.CanContentScroll="False"
       Loaded="OnLoaded"
@@ -45,20 +47,23 @@
 
         <!-- Wraps on narrow windows instead of cutting off the buttons. -->
         <WrapPanel Grid.Row="1" Margin="0,-8,0,0">
-            <ui:TextBlock Margin="0,8,8,0" VerticalAlignment="Center" Text="Start" />
+            <ui:TextBlock Margin="0,8,8,0" VerticalAlignment="Center" Text="{l:Tr Schedule_Start}" />
+            <!-- Editable: pick "Jetzt" or a full hour, or type a time like 14:30 -->
             <ComboBox x:Name="StartBox"
                       Width="112"
+                      IsEditable="True"
+                      ToolTip="{l:Tr Schedule_StartTimeTip}"
                       Margin="0,8,12,0"
                       VerticalAlignment="Center"
-                      AutomationProperties.Name="Startzeit"
+                      AutomationProperties.Name="{l:Tr Schedule_StartTimeName}"
                       DisplayMemberPath="Label"
                       DropDownOpened="OnStartDropDownOpened" />
-            <ui:TextBlock Margin="0,8,8,0" VerticalAlignment="Center" Text="Stunden" />
+            <ui:TextBlock Margin="0,8,8,0" VerticalAlignment="Center" Text="{l:Tr Schedule_Hours}" />
             <ui:NumberBox x:Name="HoursBox"
                           Width="112"
                           Margin="0,8,12,0"
                           VerticalAlignment="Center"
-                          AutomationProperties.Name="Zu planende Stunden"
+                          AutomationProperties.Name="{l:Tr Schedule_HoursName}"
                           Minimum="1"
                           Maximum="24"
                           Value="1"
@@ -69,33 +74,22 @@
                       MinWidth="0"
                       Margin="0,8,0,0"
                       VerticalAlignment="Center"
-                      Content="Unbegrenzt"
-                      ToolTip="Ohne Ende: Die nächsten 5 Stunden sind geplant, jede Stunde kommt eine weitere dazu."
+                      Content="{l:Tr Schedule_Unlimited}"
+                      ToolTip="{l:Tr Schedule_UnlimitedTip}"
                       Checked="OnUnlimitedChanged"
                       Unchecked="OnUnlimitedChanged" />
             <ui:Button x:Name="CreateButton"
                        Margin="0,8,8,0"
                        VerticalAlignment="Center"
                        Appearance="Primary"
-                       Content="Plan erstellen"
+                       Content="{l:Tr Schedule_Create}"
                        Click="OnCreate" />
+            <!-- Start: plan from now, play, and go live when laut.fm is on. Stop: ends both. Text set in code. -->
             <ui:Button x:Name="StartNowButton"
+                       MinWidth="150"
                        Margin="0,8,0,0"
                        VerticalAlignment="Center"
-                       Content="Jetzt starten"
-                       Icon="{ui:SymbolIcon Play24}"
-                       ToolTip="Plant ab diesem Moment und geht sofort auf Sendung. Die Startzeit wird ignoriert."
-                       Click="OnStartNow" />
-            <!-- Only while laut.fm is on: sends the program live to the station, independent of the plan. -->
-            <ui:Button x:Name="LiveButton"
-                       MinWidth="100"
-                       Margin="8,8,0,0"
-                       VerticalAlignment="Center"
-                       Content="Live"
-                       Icon="{ui:SymbolIcon Live24}"
-                       ToolTip="Sendet alles, was auf Sendung ist, live auf deine laut.fm-Station."
-                       Visibility="Collapsed"
-                       Click="OnLiveToggle" />
+                       Click="OnStartNowToggle" />
         </WrapPanel>
 
         <ui:InfoBar x:Name="Message"
@@ -122,7 +116,7 @@
                     <StackPanel VerticalAlignment="Center">
                         <ui:TextBlock FontTypography="Caption"
                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                      Text="Läuft gerade" />
+                                      Text="{l:Tr Schedule_NowPlaying}" />
                         <DockPanel Margin="0,4,0,0">
                             <ContentPresenter x:Name="NowKind"
                                               Margin="0,0,8,0"
@@ -132,7 +126,7 @@
                             <ui:TextBlock x:Name="NowTitle"
                                           FontTypography="Subtitle"
                                           TextTrimming="CharacterEllipsis"
-                                          Text="Nichts auf Sendung" />
+                                          Text="{l:Tr Schedule_NothingOnAir}" />
                         </DockPanel>
                     </StackPanel>
 
@@ -141,21 +135,21 @@
                         <ui:Button x:Name="MicButton"
                                    MinWidth="120"
                                    Margin="0,0,20,0"
-                                   Content="Mikro ein"
+                                   Content="{l:Tr Schedule_MicOn}"
                                    Icon="{ui:SymbolIcon Mic24}"
-                                   ToolTip="Schaltet das Mikrofon auf Sendung, auch über laufende Musik."
+                                   ToolTip="{l:Tr Schedule_MicTip}"
                                    Click="OnMicToggle" />
                         <ui:Button x:Name="EndNowButton"
-                                   Content="Jetzt beenden"
+                                   Content="{l:Tr Schedule_EndNow}"
                                    Icon="{ui:SymbolIcon Next24}"
-                                   ToolTip="Beendet das laufende Element sofort; das nächste startet."
+                                   ToolTip="{l:Tr Schedule_EndNowTip}"
                                    IsEnabled="False"
                                    Click="OnEndNow" />
                         <!-- One button: Start while idle, Stop while on air. -->
                         <ui:Button x:Name="PlayButton"
                                    MinWidth="110"
                                    Margin="8,0,0,0"
-                                   Content="Start"
+                                   Content="{l:Tr Schedule_Start}"
                                    Icon="{ui:SymbolIcon Play24}"
                                    IsEnabled="False"
                                    Click="OnPlayToggle" />
@@ -164,7 +158,7 @@
 
                 <ProgressBar x:Name="NowProgress"
                              Margin="0,14,0,0"
-                             AutomationProperties.Name="Fortschritt des aktuellen Elements"
+                             AutomationProperties.Name="{l:Tr Schedule_ProgressName}"
                              Maximum="1" />
                 <ui:TextBlock x:Name="NowTime"
                               Margin="0,6,0,0"
@@ -197,7 +191,7 @@
                     </WrapPanel.Resources>
 
                     <StackPanel Style="{StaticResource Group}">
-                        <ui:TextBlock Style="{StaticResource Heading}" Text="Sendung (für andere)" />
+                        <ui:TextBlock Style="{StaticResource Heading}" Text="{l:Tr Schedule_MixListeners}" />
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" SharedSizeGroup="MixLabel" />
@@ -207,17 +201,17 @@
                                 <RowDefinition Height="32" />
                                 <RowDefinition Height="32" />
                             </Grid.RowDefinitions>
-                            <ui:TextBlock VerticalAlignment="Center" Text="Musik" />
+                            <ui:TextBlock VerticalAlignment="Center" Text="{l:Tr Schedule_Music}" />
                             <Slider x:Name="MusicForOthersSlider" Grid.Column="1"
-                                    AutomationProperties.Name="Musik für andere" ValueChanged="OnMixChanged" />
-                            <ui:TextBlock Grid.Row="1" VerticalAlignment="Center" Text="Mikrofon" />
+                                    AutomationProperties.Name="{l:Tr Schedule_MusicForListenersName}" ValueChanged="OnMixChanged" />
+                            <ui:TextBlock Grid.Row="1" VerticalAlignment="Center" Text="{l:Tr Schedule_Microphone}" />
                             <Slider x:Name="MicrophoneForOthersSlider" Grid.Row="1" Grid.Column="1"
-                                    AutomationProperties.Name="Mikrofon für andere" ValueChanged="OnMixChanged" />
+                                    AutomationProperties.Name="{l:Tr Schedule_MicForListenersName}" ValueChanged="OnMixChanged" />
                         </Grid>
                     </StackPanel>
 
-                    <StackPanel Style="{StaticResource Group}">
-                        <ui:TextBlock Style="{StaticResource Heading}" Text="Für mich" />
+                    <StackPanel Style="{StaticResource Group}" Margin="0,0,0,8">
+                        <ui:TextBlock Style="{StaticResource Heading}" Text="{l:Tr Schedule_MixYou}" />
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" SharedSizeGroup="MixLabel" />
@@ -227,34 +221,20 @@
                                 <RowDefinition Height="32" />
                                 <RowDefinition Height="32" />
                             </Grid.RowDefinitions>
-                            <ui:TextBlock VerticalAlignment="Center" Text="Musik" />
+                            <ui:TextBlock VerticalAlignment="Center" Text="{l:Tr Schedule_Music}" />
                             <Slider x:Name="MusicForMeSlider" Grid.Column="1"
-                                    AutomationProperties.Name="Musik für mich" ValueChanged="OnMixChanged" />
+                                    AutomationProperties.Name="{l:Tr Schedule_MusicForMeName}"
+                                    ToolTip="{l:Tr Schedule_MusicForMeTip}"
+                                    ValueChanged="OnMixChanged" />
                             <CheckBox x:Name="ListenToBroadcastBox"
                                       Grid.Row="1" Grid.ColumnSpan="2"
                                       MinWidth="0"
                                       Padding="8,0,0,0"
                                       VerticalAlignment="Center"
-                                      Content="Sendung 1:1 hören"
-                                      ToolTip="Du hörst genau das, was andere hören: gleiche Lautstärke von dir, Musik und allem anderen."
+                                      Content="{l:Tr Schedule_SameAsListeners}"
+                                      ToolTip="{l:Tr Schedule_SameAsListenersTip}"
                                       Checked="OnMixChanged"
                                       Unchecked="OnMixChanged" />
-                        </Grid>
-                    </StackPanel>
-
-                    <StackPanel Style="{StaticResource Group}" Margin="0,0,0,8">
-                        <ui:TextBlock Style="{StaticResource Heading}" Text="Musik gesamt" />
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" SharedSizeGroup="MixLabel" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="32" />
-                            </Grid.RowDefinitions>
-                            <ui:TextBlock VerticalAlignment="Center" Text="Lautstärke" />
-                            <Slider x:Name="VolumeSlider" Grid.Column="1"
-                                    AutomationProperties.Name="Lautstärke der Musik gesamt" ValueChanged="OnVolumeChanged" />
                         </Grid>
                     </StackPanel>
                 </WrapPanel>
@@ -271,11 +251,11 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <ui:TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Songwunsch" />
+                <ui:TextBlock Grid.Column="0" VerticalAlignment="Center" Text="{l:Tr Schedule_RequestLabel}" />
                 <ComboBox x:Name="RequestSong"
                           Grid.Column="1"
                           Margin="12,0,0,0"
-                          AutomationProperties.Name="Gewünschter Song"
+                          AutomationProperties.Name="{l:Tr Schedule_RequestName}"
                           DisplayMemberPath="Label"
                           IsEditable="True"
                           IsTextSearchEnabled="True"
@@ -284,36 +264,52 @@
                 <ui:Button x:Name="SwapButton"
                            Grid.Column="2"
                            Margin="12,0,0,0"
-                           Content="Auswahl ersetzen"
+                           Content="{l:Tr Schedule_Swap}"
                            Icon="{ui:SymbolIcon ArrowSwap24}"
                            IsEnabled="False"
                            Click="OnSwap" />
                 <StackPanel Grid.Column="4" Margin="12,0,0,0" Orientation="Horizontal">
+                    <!-- Inserts as the one after next -->
+                    <ui:DropDownButton x:Name="AddButton"
+                                       Margin="0,0,8,0"
+                                       Content="{l:Tr Schedule_Add}"
+                                       Icon="{ui:SymbolIcon Add24}"
+                                       ToolTip="{l:Tr Schedule_AddTip}"
+                                       IsEnabled="False">
+                        <ui:DropDownButton.Flyout>
+                            <ContextMenu>
+                                <MenuItem Header="{l:Tr Schedule_AddSong}" Tag="{x:Static models:ScheduleItemKind.Song}" Click="OnAddItem" />
+                                <MenuItem Header="{l:Tr Kind_News}" Tag="{x:Static models:ScheduleItemKind.News}" Click="OnAddItem" />
+                                <MenuItem Header="{l:Tr Kind_Ad}" Tag="{x:Static models:ScheduleItemKind.Ad}" Click="OnAddItem" />
+                                <MenuItem Header="{l:Tr Kind_Moderator}" Tag="{x:Static models:ScheduleItemKind.Moderator}" Click="OnAddItem" />
+                            </ContextMenu>
+                        </ui:DropDownButton.Flyout>
+                    </ui:DropDownButton>
                     <ui:Button x:Name="MoveUpButton"
                                Icon="{ui:SymbolIcon ArrowUp24}"
-                               ToolTip="Nach oben"
-                               AutomationProperties.Name="Ausgewähltes Element nach oben verschieben"
+                               ToolTip="{l:Tr Schedule_MoveUp}"
+                               AutomationProperties.Name="{l:Tr Schedule_MoveUpName}"
                                IsEnabled="False"
                                Click="OnMoveUp" />
                     <ui:Button x:Name="MoveDownButton"
                                Margin="4,0,0,0"
                                Icon="{ui:SymbolIcon ArrowDown24}"
-                               ToolTip="Nach unten"
-                               AutomationProperties.Name="Ausgewähltes Element nach unten verschieben"
+                               ToolTip="{l:Tr Schedule_MoveDown}"
+                               AutomationProperties.Name="{l:Tr Schedule_MoveDownName}"
                                IsEnabled="False"
                                Click="OnMoveDown" />
                     <ui:Button x:Name="EditItemButton"
                                Margin="4,0,0,0"
                                Icon="{ui:SymbolIcon Edit24}"
-                               ToolTip="Titel und Länge bearbeiten"
-                               AutomationProperties.Name="Ausgewähltes Element bearbeiten"
+                               ToolTip="{l:Tr Schedule_EditTip}"
+                               AutomationProperties.Name="{l:Tr Schedule_EditName}"
                                IsEnabled="False"
                                Click="OnEditItem" />
                     <ui:Button x:Name="RemoveButton"
                                Margin="4,0,0,0"
                                Icon="{ui:SymbolIcon Delete24}"
-                               ToolTip="Aus dem Plan entfernen"
-                               AutomationProperties.Name="Ausgewähltes Element entfernen"
+                               ToolTip="{l:Tr Schedule_RemoveTip}"
+                               AutomationProperties.Name="{l:Tr Schedule_RemoveName}"
                                IsEnabled="False"
                                Click="OnRemove" />
                 </StackPanel>
@@ -329,42 +325,71 @@
                      Grid.Row="5"
                      SelectionMode="Single"
                      IsHitTestVisible="True"
-                     AutomationProperties.Name="Sendeplan"
+                     AutomationProperties.Name="{l:Tr Schedule_Title}"
+                     AllowDrop="True"
                      SelectionChanged="OnTimelineSelectionChanged"
-                     MouseDoubleClick="OnEditItem">
+                     MouseDoubleClick="OnEditItem"
+                     PreviewMouseLeftButtonDown="OnTimelineMouseDown"
+                     PreviewMouseMove="OnTimelineMouseMove"
+                     DragOver="OnTimelineDragOver"
+                     DragLeave="OnTimelineDragLeave"
+                     Drop="OnTimelineDrop">
             <ui:ListView.View>
                 <ui:GridView>
                     <ui:GridViewColumn Width="36">
                         <ui:GridViewColumn.CellTemplate>
                             <DataTemplate>
-                                <ui:SymbolIcon x:Name="OnAir"
-                                               Symbol="Play24"
-                                               Filled="True"
-                                               Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"
-                                               AutomationProperties.Name="Auf Sendung"
-                                               Visibility="Collapsed" />
+                                <Grid>
+                                    <ui:SymbolIcon x:Name="OnAir"
+                                                   Symbol="Play24"
+                                                   Filled="True"
+                                                   Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"
+                                                   AutomationProperties.Name="{l:Tr Schedule_OnAirName}"
+                                                   Visibility="Collapsed" />
+                                    <!-- Grip on hover or selection: the row can be dragged -->
+                                    <ui:SymbolIcon x:Name="Grip"
+                                                   Symbol="ReOrderDotsVertical24"
+                                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                   Cursor="SizeAll"
+                                                   ToolTip="{l:Tr Schedule_DragTip}"
+                                                   Visibility="Hidden" />
+                                </Grid>
                                 <DataTemplate.Triggers>
                                     <DataTrigger Binding="{Binding IsCurrent}" Value="True">
                                         <Setter TargetName="OnAir" Property="Visibility" Value="Visible" />
                                     </DataTrigger>
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding CanMove}" Value="True" />
+                                            <Condition Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=ListViewItem}}" Value="True" />
+                                        </MultiDataTrigger.Conditions>
+                                        <Setter TargetName="Grip" Property="Visibility" Value="Visible" />
+                                    </MultiDataTrigger>
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding CanMove}" Value="True" />
+                                            <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListViewItem}}" Value="True" />
+                                        </MultiDataTrigger.Conditions>
+                                        <Setter TargetName="Grip" Property="Visibility" Value="Visible" />
+                                    </MultiDataTrigger>
                                 </DataTemplate.Triggers>
                             </DataTemplate>
                         </ui:GridViewColumn.CellTemplate>
                     </ui:GridViewColumn>
-                    <ui:GridViewColumn Width="90" Header="Start">
+                    <ui:GridViewColumn Width="90" Header="{l:Tr Schedule_Start}">
                         <ui:GridViewColumn.DisplayMemberBinding>
                             <Binding Path="Item.Start" StringFormat="HH:mm:ss" />
                         </ui:GridViewColumn.DisplayMemberBinding>
                     </ui:GridViewColumn>
-                    <ui:GridViewColumn Width="120" Header="Typ">
+                    <ui:GridViewColumn Width="120" Header="{l:Tr Schedule_ColType}">
                         <ui:GridViewColumn.CellTemplate>
                             <DataTemplate>
                                 <ContentPresenter Content="{Binding Item}" ContentTemplate="{StaticResource KindChip}" />
                             </DataTemplate>
                         </ui:GridViewColumn.CellTemplate>
                     </ui:GridViewColumn>
-                    <ui:GridViewColumn Width="360" Header="Titel" DisplayMemberBinding="{Binding Item.Title}" />
-                    <ui:GridViewColumn Width="90" Header="Dauer">
+                    <ui:GridViewColumn Width="360" Header="{l:Tr Schedule_ColTitle}" DisplayMemberBinding="{Binding Item.Title}" />
+                    <ui:GridViewColumn Width="90" Header="{l:Tr Schedule_ColDuration}">
                         <ui:GridViewColumn.DisplayMemberBinding>
                             <Binding Path="Item.Duration" StringFormat="m\:ss" />
                         </ui:GridViewColumn.DisplayMemberBinding>
@@ -379,7 +404,7 @@
                       HorizontalAlignment="Center"
                       VerticalAlignment="Top"
                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                      Text="Noch kein Plan. Stunden wählen und Plan erstellen."
+                      Text="{l:Tr Schedule_Empty}"
                       Visibility="Visible" />
     </Grid>
 </Page>

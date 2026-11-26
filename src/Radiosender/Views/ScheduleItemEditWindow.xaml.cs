@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Windows;
 using Radiosender.Models;
+using Radiosender.Services.Localization;
 using Wpf.Ui.Controls;
 
 namespace Radiosender.Views;
@@ -9,14 +10,16 @@ public partial class ScheduleItemEditWindow : FluentWindow
 {
     private static readonly string[] DurationFormats = [@"m\:ss", @"mm\:ss"];
 
-    public ScheduleItemEditWindow(ScheduleItem item)
+    // adding: new item, so every kind may set its length.
+    public ScheduleItemEditWindow(ScheduleItem item, bool adding = false)
     {
         InitializeComponent();
-        Title = Bar.Title = $"{item.KindName} bearbeiten";
+        Title = Bar.Title = Loc.F(adding ? "ItemEdit_AddTitle" : "ItemEdit_EditTitle", item.KindName);
+        SaveButton.Content = Loc.T(adding ? "Schedule_Add" : "ItemEdit_Save");
         TitleBox.Text = item.Title;
         DurationBox.Text = item.Duration.ToString(@"m\:ss");
         Duration = item.Duration;
-        DurationLabel.IsEnabled = DurationBox.IsEnabled = item.Kind is ScheduleItemKind.News or ScheduleItemKind.Moderator;
+        DurationLabel.IsEnabled = DurationBox.IsEnabled = adding || item.Kind is ScheduleItemKind.News or ScheduleItemKind.Moderator;
     }
 
     public string ItemTitle => TitleBox.Text;

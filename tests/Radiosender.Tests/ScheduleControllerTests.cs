@@ -100,18 +100,23 @@ public sealed class ScheduleControllerTests : IDisposable
     }
 
     [Fact]
-    public void StartNow_PlansFromThisMomentAndGoesOnAir()
+    public void PlanFromNow_ShiftsToTheMomentOfTheFirstStart()
     {
         AddSongs();
         var hold = new TaskCompletionSource();
         var controller = Create((_, token) => hold.Task.WaitAsync(token));
+        var created = controller.CreatePlan(1, _now);
+        Assert.Equal(_now, created[0].Start);
+        Assert.NotEqual(ScheduleItemKind.News, created[0].Kind);
+        Assert.Equal(new DateTime(2026, 11, 23, 16, 0, 0), created[^1].End);
 
-        controller.StartNow(1);
+        _now = _now.AddSeconds(40); // the user waited before pressing Start
+        controller.Start();
 
         Assert.True(controller.IsPlaying);
         Assert.Equal(_now, controller.Plan[0].Start);
-        Assert.NotEqual(ScheduleItemKind.News, controller.Plan[0].Kind);
-        Assert.Equal(new DateTime(2026, 11, 23, 16, 0, 0), controller.Plan[^1].End);
+        Assert.Equal(created[^1].End.AddSeconds(40), controller.Plan[^1].End);
+        Assert.Equal(created.Select(i => i.Duration), controller.Plan.Select(i => i.Duration));
         controller.Stop();
     }
 
@@ -148,6 +153,39 @@ public sealed class ScheduleControllerTests : IDisposable
         controller.CreatePlan(1);
 
         Assert.Throws<ScheduleException>(() => controller.Move(0, -1));
+    }
+
+    [Fact]
+    public void Insert_AddsAnyKindAndShiftsTheLaterItems()
+    {
+        AddSongs();
+        var controller = Create();
+        var plan = controller.CreatePlan(1);
+        var song = _songs.GetAll()[0];
+
+        var withAd = controller.Insert(1, ScheduleItemKind.Ad, " Spot ", TimeSpan.FromSeconds(30));
+        var withSong = controller.Insert(withAd.Count, ScheduleItemKind.Song, "", TimeSpan.Zero, song.Id);
+
+        Assert.Equal(plan.Count + 2, withSong.Count);
+        Assert.Equal(new ScheduleItem(ScheduleItemKind.Ad, "Spot", plan[0].End, TimeSpan.FromSeconds(30)), withSong[1]);
+        Assert.Equal(plan[1].Start + TimeSpan.FromSeconds(30), withSong[2].Start);
+        Assert.Equal(ScheduleItemKind.Song, withSong[^1].Kind);
+        Assert.Equal("Artist - Song 0", withSong[^1].Title);
+        Assert.Equal(song.Duration, withSong[^1].Duration);
+        Assert.Equal(withSong[^2].End, withSong[^1].Start);
+    }
+
+    [Fact]
+    public void Insert_RejectsMissingPlanSongAndLength()
+    {
+        AddSongs();
+        var controller = Create();
+
+        Assert.Throws<ScheduleException>(() => controller.Insert(0, ScheduleItemKind.News, "", TimeSpan.FromMinutes(5)));
+        controller.CreatePlan(1);
+        Assert.Throws<ScheduleException>(() => controller.Insert(0, ScheduleItemKind.Moderator, "", TimeSpan.Zero));
+        Assert.Throws<ScheduleException>(() => controller.Insert(0, ScheduleItemKind.Song, "", TimeSpan.Zero, songId: 999));
+        Assert.Throws<ScheduleException>(() => controller.Insert(controller.Plan.Count + 1, ScheduleItemKind.Ad, "", TimeSpan.FromSeconds(30)));
     }
 
     [Fact]

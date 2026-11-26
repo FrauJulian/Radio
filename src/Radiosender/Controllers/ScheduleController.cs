@@ -1,6 +1,7 @@
 using Radiosender.Models;
 using Radiosender.Services.Audio;
 using Radiosender.Services.Library;
+using Radiosender.Services.Localization;
 using Radiosender.Services.Scheduling;
 
 namespace Radiosender.Controllers;
@@ -18,6 +19,7 @@ public class ScheduleController
     private readonly Func<DateTime> _now;
     // Plan edits (UI thread) vs. hourly extension (engine thread).
     private readonly Lock _planLock = new();
+    private bool _fromNow; // plan starts at its creation moment, not at a set time
     private DateTime _itemStartedAt;
 
     public ScheduleController(SongRepository songs, ScheduleGenerator generator, PlaybackEngine engine, Func<DateTime> now)
@@ -32,7 +34,7 @@ public class ScheduleController
             ExtendIfUnlimited();
             ItemStarted?.Invoke(this, e.Index);
         };
-        _engine.ItemFailed += (_, e) => ItemFailed?.Invoke(this, $"\"{e.Item.Title}\" übersprungen: {e.Error.Message}");
+        _engine.ItemFailed += (_, e) => ItemFailed?.Invoke(this, Loc.F("Schedule_ItemFailedText", e.Item.Title, e.Error.Message));
         _engine.Finished += (_, _) => Finished?.Invoke(this, EventArgs.Empty);
     }
 
@@ -54,12 +56,6 @@ public class ScheduleController
         ? TimeSpan.FromTicks(Math.Clamp((_now() - _itemStartedAt).Ticks, 0, item.Duration.Ticks))
         : TimeSpan.Zero;
 
-    public float Volume
-    {
-        get => MusicPlayer.Instance.Volume;
-        set => MusicPlayer.Instance.Volume = value;
-    }
-
     // hours null = unlimited; start null = next full hour.
     /// <exception cref="ScheduleException">Library cannot fill the plan.</exception>
     public IReadOnlyList<ScheduleItem> CreatePlan(int? hours, DateTime? start = null)
@@ -79,15 +75,9 @@ public class ScheduleController
         {
             Plan = plan;
             IsUnlimited = hours is null;
+            _fromNow = from <= now;
         }
         return plan;
-    }
-
-    /// <exception cref="ScheduleException">Library cannot fill the plan.</exception>
-    public void StartNow(int? hours)
-    {
-        CreatePlan(hours, _now());
-        _engine.Start(Plan);
     }
 
     // Engine thread. shortcut: played items stay in Plan (~20/h), trim if broadcasts run for weeks.
@@ -112,7 +102,7 @@ public class ScheduleController
         }
         catch (ScheduleException ex)
         {
-            ItemFailed?.Invoke(this, $"Der Plan konnte nicht verlängert werden: {ex.Message}");
+            ItemFailed?.Invoke(this, Loc.F("Schedule_ExtendFailed", ex.Message));
         }
     }
 
@@ -120,11 +110,23 @@ public class ScheduleController
 
     public void Start()
     {
-        if (Plan.Count == 0)
-            throw new InvalidOperationException("Zuerst einen Plan erstellen.");
-        if (Plan[^1].Start <= _now())
-            throw new InvalidOperationException("Dieser Plan ist bereits vorbei. Einen neuen erstellen.");
-        _engine.Start(Plan);
+        lock (_planLock)
+        {
+            if (Plan.Count == 0)
+                throw new InvalidOperationException(Loc.T("Schedule_CreateFirst"));
+            var now = _now();
+            // "Jetzt" plan, first start: shift to now, else the engine skips what began while the user waited.
+            // shortcut: news drift by that wait; regenerate if users wait minutes between create and start.
+            if (_fromNow && Plan[0].Start < now)
+            {
+                var offset = new DateTime(now.Ticks - now.Ticks % TimeSpan.TicksPerSecond, now.Kind) - Plan[0].Start;
+                Plan = [.. Plan.Select(item => item with { Start = item.Start + offset })];
+            }
+            _fromNow = false;
+            if (Plan[^1].Start <= now)
+                throw new InvalidOperationException(Loc.T("Schedule_PlanOver"));
+            _engine.Start(Plan);
+        }
     }
 
     public void Stop() => _engine.Stop();
@@ -159,13 +161,30 @@ public class ScheduleController
     {
         var target = index + offset;
         if (target < 0 || target >= Plan.Count)
-            throw new ScheduleException("Das Element ist bereits am Rand des Plans.");
+            throw new ScheduleException(Loc.T("Schedule_AtEdge"));
         return Change(Math.Min(index, target), change: items =>
         {
             var item = items[index];
             items.RemoveAt(index);
             items.Insert(target, item);
         });
+    }
+
+    // index == Plan.Count appends. Song: songId required, its length is used.
+    /// <exception cref="ScheduleException">No plan, position on air or over, song missing, or length not positive.</exception>
+    public IReadOnlyList<ScheduleItem> Insert(int index, ScheduleItemKind kind, string title, TimeSpan duration, long? songId = null)
+    {
+        Song? song = null;
+        if (kind == ScheduleItemKind.Song)
+        {
+            song = (songId is { } id ? _songs.GetById(id) : null) ?? throw new ScheduleException(Loc.T("Schedule_SongGone"));
+            title = string.IsNullOrWhiteSpace(song.Artist) ? song.Title : $"{song.Artist} - {song.Title}";
+            duration = song.Duration;
+        }
+        if (duration <= TimeSpan.Zero)
+            throw new ScheduleException(Loc.T("Schedule_LengthPositive"));
+        var item = new ScheduleItem(kind, title.Trim(), default, duration, song);
+        return Change(index, change: items => items.Insert(index, item), appendAllowed: true);
     }
 
     /// <exception cref="ScheduleException">Item on air or over.</exception>
@@ -176,7 +195,7 @@ public class ScheduleController
     {
         var index = CurrentIndex;
         if (CurrentItem is null)
-            throw new ScheduleException("Es ist nichts auf Sendung.");
+            throw new ScheduleException(Loc.T("Schedule_NothingOnAirError"));
         var now = _now();
         // Whole seconds: next start not in the future.
         var end = new DateTime(now.Ticks - now.Ticks % TimeSpan.TicksPerSecond, now.Kind);
@@ -192,29 +211,29 @@ public class ScheduleController
     {
         var item = items[index];
         if (item.Kind == ScheduleItemKind.Song)
-            throw new ScheduleException("Songs werden in der Bibliothek bearbeitet.");
+            throw new ScheduleException(Loc.T("Schedule_SongsEditInLibrary"));
         if (duration != item.Duration && item.Kind == ScheduleItemKind.Ad)
-            throw new ScheduleException("Nur Nachrichten und Moderation können ihre Länge ändern.");
+            throw new ScheduleException(Loc.T("Schedule_OnlyNewsModeratorLength"));
         if (duration <= TimeSpan.Zero)
-            throw new ScheduleException("Die Länge muss größer als null sein.");
+            throw new ScheduleException(Loc.T("Schedule_LengthPositive"));
         items[index] = item with { Title = title.Trim(), Duration = duration };
     });
 
     // Ripple re-time from firstChanged; news may leave :00/:30 (intended).
-    private IReadOnlyList<ScheduleItem> Change(int firstChanged, Action<List<ScheduleItem>> change, bool currentAllowed = false)
+    private IReadOnlyList<ScheduleItem> Change(int firstChanged, Action<List<ScheduleItem>> change, bool currentAllowed = false, bool appendAllowed = false)
     {
         lock (_planLock)
         {
-            if (firstChanged < 0 || firstChanged >= Plan.Count)
-                throw new ScheduleException("Ein Element im Plan auswählen.");
+            if (Plan.Count == 0)
+                throw new ScheduleException(Loc.T("Schedule_CreateFirst"));
+            if (firstChanged < 0 || firstChanged > Plan.Count || (firstChanged == Plan.Count && !appendAllowed))
+                throw new ScheduleException(Loc.T("Schedule_SelectItem"));
             var onAir = IsPlaying && firstChanged == CurrentIndex;
             if (IsPlaying && (firstChanged < CurrentIndex || (onAir && !currentAllowed)))
-                throw new ScheduleException(onAir
-                    ? "Dieses Element ist auf Sendung. Es kann bearbeitet oder beendet, aber nicht verschoben oder entfernt werden."
-                    : "Dieses Element ist bereits vorbei. Ein späteres wählen.");
+                throw new ScheduleException(Loc.T(onAir ? "Schedule_OnAirLocked" : "Schedule_ItemOver"));
 
             List<ScheduleItem> items = [.. Plan];
-            var start = items[firstChanged].Start;
+            var start = firstChanged < items.Count ? items[firstChanged].Start : items[^1].End;
             change(items);
             for (var i = firstChanged; i < items.Count; i++)
             {
@@ -223,7 +242,7 @@ public class ScheduleController
             }
 
             if (IsPlaying && !(onAir ? _engine.ReplaceCurrent(items, firstChanged) : _engine.ReplaceUpcoming(items, firstChanged)))
-                throw new ScheduleException("Die Sendung ist inzwischen weitergelaufen. Erneut versuchen.");
+                throw new ScheduleException(Loc.T("Schedule_RunMovedOn"));
             Plan = items;
             return items;
         }
@@ -238,16 +257,16 @@ public class ScheduleController
         lock (_planLock)
         {
             if (Plan.Count == 0)
-                throw new ScheduleException("Zuerst einen Plan erstellen.");
+                throw new ScheduleException(Loc.T("Schedule_CreateFirst"));
             if (index < 0 || index >= Plan.Count)
-                throw new ScheduleException("Ein Element im Plan auswählen.");
+                throw new ScheduleException(Loc.T("Schedule_SelectItem"));
             if (IsPlaying && index <= CurrentIndex)
-                throw new ScheduleException("Dieses Element ist bereits auf Sendung oder vorbei. Ein späteres wählen.");
-            var song = _songs.GetById(songId) ?? throw new ScheduleException("Der Song ist nicht mehr in der Bibliothek.");
+                throw new ScheduleException(Loc.T("Schedule_SwapOnAirOrOver"));
+            var song = _songs.GetById(songId) ?? throw new ScheduleException(Loc.T("Schedule_SongGone"));
 
             var plan = _generator.Replace(Plan, index, song, _songs.GetAll());
             if (IsPlaying && !_engine.ReplaceUpcoming(plan, index))
-                throw new ScheduleException("Dieses Element ist inzwischen auf Sendung gegangen. Ein späteres wählen.");
+                throw new ScheduleException(Loc.T("Schedule_SwapWentOnAir"));
             Plan = plan;
             return plan;
         }

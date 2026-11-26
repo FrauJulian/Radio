@@ -1,5 +1,6 @@
 using System.IO;
 using NAudio.Wave;
+using Radiosender.Services.Localization;
 
 namespace Radiosender.Services.Audio;
 
@@ -12,7 +13,6 @@ public sealed class MusicPlayer : IAudioPlayer
     private readonly Lock _lock = new();
     private AudioFileReader? _reader;
     private ISampleProvider? _input;
-    private float _volume = 1f;
 
     private MusicPlayer()
     {
@@ -36,21 +36,6 @@ public sealed class MusicPlayer : IAudioPlayer
         get { lock (_lock) return _reader?.TotalTime ?? TimeSpan.Zero; }
     }
 
-    public float Volume
-    {
-        get { lock (_lock) return _volume; }
-        set
-        {
-            ArgumentOutOfRangeException.ThrowIfLessThan(value, 0f);
-            ArgumentOutOfRangeException.ThrowIfGreaterThan(value, 1f);
-            lock (_lock)
-            {
-                _volume = value;
-                _reader?.Volume = value;
-            }
-        }
-    }
-
     public void Play(string filePath)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
@@ -60,17 +45,17 @@ public sealed class MusicPlayer : IAudioPlayer
             Release();
 
             if (!File.Exists(filePath))
-                throw new FileNotFoundException($"Audiodatei nicht gefunden: {filePath}", filePath);
+                throw new FileNotFoundException(Loc.F("Audio_FileNotFound", filePath), filePath);
 
             try
             {
-                _reader = new AudioFileReader(filePath) { Volume = _volume };
+                _reader = new AudioFileReader(filePath);
                 _input = _output.Add(_reader, AudioSource.Music);
             }
             catch (Exception ex) when (ex is not (OutOfMemoryException or NAudio.MmException))
             {
                 Release();
-                throw new InvalidDataException($"Audiodatei kann nicht gelesen werden: {filePath}", ex);
+                throw new InvalidDataException(Loc.F("Audio_FileUnreadable", filePath), ex);
             }
             catch
             {

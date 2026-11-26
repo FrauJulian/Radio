@@ -102,13 +102,6 @@ public sealed class MusicPlayerTests : IDisposable
         Assert.False(MusicPlayer.Instance.IsPlaying);
     }
 
-    [Fact]
-    public void Volume_OutOfRange_Throws()
-    {
-        Assert.Throws<ArgumentOutOfRangeException>(() => MusicPlayer.Instance.Volume = 1.5f);
-        Assert.Throws<ArgumentOutOfRangeException>(() => MusicPlayer.Instance.Volume = -0.1f);
-    }
-
     [AudioDeviceFact]
     public void Stop_DoesNotRaiseTrackFinished()
     {
