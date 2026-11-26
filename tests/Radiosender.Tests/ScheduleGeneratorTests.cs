@@ -265,6 +265,8 @@ public class ScheduleGeneratorTests
             try { swapped = Generator(seed).Replace(plan, index, Request, Library); }
             catch (ScheduleException) { continue; } // too little time left before the news
 
+            // Also when only the requested song fits: breaks go after it, not before.
+            Assert.Equal(Request, swapped[index].Song);
             Assert.Equal(plan[^1].End, swapped[^1].End);
             for (var i = 1; i < swapped.Count; i++)
                 Assert.False(swapped[i - 1].Kind == ScheduleItemKind.Ad && swapped[i].Kind == ScheduleItemKind.Ad,

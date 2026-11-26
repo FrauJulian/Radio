@@ -194,7 +194,7 @@ public class ScheduleGenerator(ScheduleOptions options, Random random)
         var pairs = Math.Max(adPieces.Count, moderatorPieces.Count);
 
         // Hot swap: requested song stays first, breaks start after it.
-        var firstBreakSong = keepFirstSongFirst && songs.Count > 1 ? 1 : 0;
+        var firstBreakSong = keepFirstSongFirst ? 1 : 0; // also when it is the only song: breaks then follow it
         var breakSlots = Math.Max(songs.Count - firstBreakSong, 1);
         var breaks = Math.Min(pairs, breakSlots);
 
