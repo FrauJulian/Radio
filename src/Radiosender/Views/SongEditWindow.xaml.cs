@@ -4,7 +4,6 @@ using Wpf.Ui.Controls;
 
 namespace Radiosender.Views;
 
-/// <summary>Dialog for the editable song metadata. Only collects input; saving is done by the caller.</summary>
 public partial class SongEditWindow : FluentWindow
 {
     public SongEditWindow(Song song)

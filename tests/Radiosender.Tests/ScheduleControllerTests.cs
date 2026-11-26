@@ -1,7 +1,9 @@
 using Microsoft.Data.Sqlite;
 using Radiosender.Controllers;
 using Radiosender.Models;
-using Radiosender.Services;
+using Radiosender.Services.Audio;
+using Radiosender.Services.Library;
+using Radiosender.Services.Scheduling;
 
 namespace Radiosender.Tests;
 

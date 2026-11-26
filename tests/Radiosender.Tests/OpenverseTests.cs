@@ -3,7 +3,8 @@ using System.Text;
 using Microsoft.Data.Sqlite;
 using Radiosender.Controllers;
 using Radiosender.Models;
-using Radiosender.Services;
+using Radiosender.Services.Library;
+using Radiosender.Services.Providers;
 
 namespace Radiosender.Tests;
 

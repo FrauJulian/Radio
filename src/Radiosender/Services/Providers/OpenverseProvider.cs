@@ -4,9 +4,8 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Radiosender.Models;
 
-namespace Radiosender.Services;
+namespace Radiosender.Services.Providers;
 
-/// <summary>Searches the Openverse audio catalog anonymously.</summary>
 public class OpenverseProvider(HttpClient http) : IMusicProvider
 {
     private const string SearchUrl = "https://api.openverse.org/v1/audio/";

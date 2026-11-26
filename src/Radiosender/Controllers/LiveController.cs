@@ -1,13 +1,11 @@
 using System.Net.Http;
 using NAudio.Wave;
-using Radiosender.Services;
+using Radiosender.Services.Audio;
+using Radiosender.Services.Settings;
+using Radiosender.Services.Streaming;
 
 namespace Radiosender.Controllers;
 
-/// <summary>
-/// Sends the broadcast mix live to laut.fm, independent of the plan: whatever is on air goes out,
-/// and each item that starts sets the stream title.
-/// </summary>
 public class LiveController
 {
     private readonly ScheduleController _schedule;
@@ -30,19 +28,15 @@ public class LiveController
         _schedule.ItemStarted += (_, _) => SendCurrentTitle();
     }
 
-    /// <summary>laut.fm is switched on in the settings.</summary>
     public bool IsEnabled => _settings.Current.LautFmEnabled;
 
     public bool IsLive => _stream is not null;
 
-    /// <summary>
-    /// Something went wrong: the stream broke (then <see cref="IsLive"/> is false) or a title was not taken.
-    /// Raised on a background thread.
-    /// </summary>
+    // Background thread.
     public event EventHandler<string>? Problem;
 
-    /// <exception cref="LiveStreamException">laut.fm is off or cannot be reached, or the login was refused.</exception>
-    /// <exception cref="NAudio.MmException">No audio output device can be opened; the broadcast device sets the pace.</exception>
+    /// <exception cref="LiveStreamException">laut.fm off, unreachable, or login refused.</exception>
+    /// <exception cref="NAudio.MmException">No audio output device.</exception>
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
         if (IsLive)
@@ -74,7 +68,7 @@ public class LiveController
 
     public void Stop() => Stop(null);
 
-    // With a stream given, stops only if that one is still the current stream.
+    // only != null: stop only if still current stream.
     private void Stop(IcecastStream? only)
     {
         IcecastStream stream;

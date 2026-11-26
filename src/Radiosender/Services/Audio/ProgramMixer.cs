@@ -1,46 +1,29 @@
 using NAudio.Wave;
 
-namespace Radiosender.Services;
+namespace Radiosender.Services.Audio;
 
-/// <summary>What an input of the mixer is; the levels differ by kind.</summary>
-public enum AudioSource
-{
-    Music,
-    Microphone,
-}
-
-/// <summary>
-/// Mixes every input twice in one pass: once for the listeners (the broadcast) and once for the person at
-/// the desk (the monitor). Each input is read only once, so both mixes stay in step.
-/// </summary>
 public sealed class ProgramMixer
 {
     private readonly Lock _lock = new();
     private readonly List<(ISampleProvider Input, AudioSource Kind)> _inputs = [];
     private float[] _scratch = [];
 
-    // Written by the UI thread, read by the audio thread; a level that arrives one block late is fine.
+    // UI thread writes, audio thread reads; one block late is fine.
     private volatile float _musicForOthers = 1f;
     private volatile float _microphoneForOthers = 1f;
     private volatile float _musicForMe = 1f;
     private volatile bool _listenToBroadcast = true;
 
-    /// <summary>
-    /// Raised when an input has played to its end and was dropped. Comes from the audio thread while the
-    /// mixer is busy: handlers must return at once and must not call back into the mixer.
-    /// </summary>
+    /// <summary>Audio thread, under mixer lock: return at once, never call back into the mixer.</summary>
     public event EventHandler<ISampleProvider>? InputEnded;
 
-    /// <summary>How loud the music is on the broadcast, from 0 to 1.</summary>
     public float MusicForOthers { get => _musicForOthers; set => _musicForOthers = Level(value); }
 
-    /// <summary>How loud the microphone is on the broadcast, from 0 to 1.</summary>
     public float MicrophoneForOthers { get => _microphoneForOthers; set => _microphoneForOthers = Level(value); }
 
-    /// <summary>How loud the music is on the monitor, from 0 to 1. The monitor never carries the microphone: hearing oneself late is distracting.</summary>
+    // Monitor never carries the mic: hearing oneself late distracts.
     public float MusicForMe { get => _musicForMe; set => _musicForMe = Level(value); }
 
-    /// <summary>When set, the monitor is an exact copy of the broadcast and <see cref="MusicForMe"/> has no effect.</summary>
     public bool ListenToBroadcast { get => _listenToBroadcast; set => _listenToBroadcast = value; }
 
     public void Add(ISampleProvider input, AudioSource kind)
@@ -48,13 +31,12 @@ public sealed class ProgramMixer
         lock (_lock) _inputs.Add((input, kind));
     }
 
-    /// <summary>Returns once the audio thread no longer reads from the input.</summary>
+    /// <summary>Returns once the audio thread no longer reads the input.</summary>
     public void Remove(ISampleProvider input)
     {
         lock (_lock) _inputs.RemoveAll(entry => ReferenceEquals(entry.Input, input));
     }
 
-    /// <summary>Fills both buffers, which must have the same length, with the next block of each mix.</summary>
     public void Mix(Span<float> broadcast, Span<float> monitor)
     {
         broadcast.Clear();
@@ -85,12 +67,17 @@ public sealed class ProgramMixer
             }
         }
 
-        // Two loud inputs can add up past full scale, which would distort harshly on the device.
-        for (var n = 0; n < broadcast.Length; n++)
-        {
-            broadcast[n] = Math.Clamp(broadcast[n], -1f, 1f);
-            monitor[n] = copyBroadcast ? broadcast[n] : Math.Clamp(monitor[n], -1f, 1f);
-        }
+        Clamp(broadcast);
+        if (copyBroadcast)
+            broadcast.CopyTo(monitor);
+        else
+            Clamp(monitor);
+    }
+
+    private static void Clamp(Span<float> samples)
+    {
+        foreach (ref var sample in samples)
+            sample = Math.Clamp(sample, -1f, 1f);
     }
 
     private static float Level(float value)

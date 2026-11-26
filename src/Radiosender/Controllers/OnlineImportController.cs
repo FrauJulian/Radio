@@ -1,22 +1,19 @@
 using System.IO;
 using Radiosender.Models;
-using Radiosender.Services;
+using Radiosender.Services.Library;
+using Radiosender.Services.Providers;
 
 namespace Radiosender.Controllers;
 
-/// <summary>Searches the registered music providers and imports their results into the library.</summary>
 public class OnlineImportController(IEnumerable<IMusicProvider> providers, TrackDownloader downloader, SongRepository songs)
 {
-    private readonly IReadOnlyList<IMusicProvider> _providers = providers.ToList();
+    private readonly IReadOnlyList<IMusicProvider> _providers = [.. providers];
 
-    /// <summary>The providers registered in <c>App</c> that are available now, in registration order.</summary>
-    public IReadOnlyList<IMusicProvider> Providers => _providers.Where(provider => provider.IsAvailable).ToList();
+    public IReadOnlyList<IMusicProvider> Providers => [.. _providers.Where(provider => provider.IsAvailable)];
 
-    /// <summary>Ids of the provider results that are already in the library.</summary>
     public IReadOnlySet<string> ImportedIds() => songs.GetExternalIds();
 
-    /// <summary>Downloads the track and stores it as a song with its license and attribution.</summary>
-    /// <exception cref="MusicProviderException">The track cannot be imported or the download failed.</exception>
+    /// <exception cref="MusicProviderException">Track not importable or download failed.</exception>
     public async Task<Song> ImportAsync(MusicTrack track, CancellationToken cancellationToken = default)
     {
         if (track.Duration is not { } duration)

@@ -1,7 +1,7 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Radiosender.Models;
-using Radiosender.Services;
+using Radiosender.Services.Library;
 
 namespace Radiosender.Tests;
 

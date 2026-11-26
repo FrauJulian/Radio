@@ -1,5 +1,5 @@
 using Radiosender.Models;
-using Radiosender.Services;
+using Radiosender.Services.Scheduling;
 
 namespace Radiosender.Tests;
 

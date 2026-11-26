@@ -3,12 +3,9 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Radiosender.Models;
 
-namespace Radiosender.Services;
+namespace Radiosender.Services.Library;
 
-/// <summary>
-/// The music library in a SQLite file, accessed through Entity Framework Core.
-/// Every call uses its own short-lived context, so the repository can be used from any thread.
-/// </summary>
+// Fresh DbContext per call: safe from any thread.
 public class SongRepository
 {
     public static string DefaultDatabasePath { get; } = Path.Combine(
@@ -23,12 +20,10 @@ public class SongRepository
             .UseSqlite(new SqliteConnectionStringBuilder { DataSource = databasePath }.ToString())
             .Options;
 
-        // Creates the file and the table on first start; an existing database is left as it is.
         using var context = Open();
         context.Database.EnsureCreated();
     }
 
-    /// <summary>Ids of all provider results that are already in the library.</summary>
     public IReadOnlySet<string> GetExternalIds()
     {
         using var context = Open();
@@ -47,9 +42,7 @@ public class SongRepository
         return context.Songs.AsNoTracking().FirstOrDefault(s => s.Id == id);
     }
 
-    /// <summary>Inserts the song and sets its <see cref="Song.Id"/>.</summary>
-    /// <exception cref="ArgumentException">The song has no duration.</exception>
-    /// <exception cref="DbUpdateException">The database rejected the song, e.g. a second song with the same external id.</exception>
+    /// <exception cref="DbUpdateException">Rejected, e.g. duplicate external id.</exception>
     public void Add(Song song)
     {
         RequireDuration(song);
@@ -58,9 +51,7 @@ public class SongRepository
         context.SaveChanges();
     }
 
-    /// <summary>Stores everything except the external id, which never changes after the import.</summary>
-    /// <returns><c>false</c> if no song with this id exists.</returns>
-    /// <exception cref="ArgumentException">The song has no duration.</exception>
+    // ExternalId never changes after import.
     public bool Update(Song song)
     {
         RequireDuration(song);
@@ -75,7 +66,6 @@ public class SongRepository
             .SetProperty(x => x.Attribution, song.Attribution)) == 1;
     }
 
-    /// <returns><c>false</c> if no song with this id exists.</returns>
     public bool Delete(long id)
     {
         using var context = Open();
@@ -84,14 +74,12 @@ public class SongRepository
 
     private LibraryContext Open() => new(_options);
 
-    // Songs need a length for scheduling. Checked here, so the rule does not depend on the database schema.
     private static void RequireDuration(Song song)
     {
         if (song.Duration <= TimeSpan.Zero)
             throw new ArgumentException("A song needs a duration longer than zero.", nameof(song));
     }
 
-    /// <summary>Maps <see cref="Song"/> to the table <c>Songs</c>.</summary>
     private sealed class LibraryContext(DbContextOptions<LibraryContext> options) : DbContext(options)
     {
         public DbSet<Song> Songs => Set<Song>();
@@ -100,14 +88,12 @@ public class SongRepository
         {
             var song = modelBuilder.Entity<Song>();
             song.ToTable("Songs");
-            // Stored as whole milliseconds in the column the first version of the app created.
+            // Legacy column names from v1; keep for existing databases.
             song.Property(s => s.Duration)
                 .HasColumnName("DurationMs")
                 .HasConversion(duration => (long)duration.TotalMilliseconds, milliseconds => TimeSpan.FromMilliseconds(milliseconds));
-            // The column keeps the name it got when Openverse was the only provider.
             song.Property(s => s.ExternalId).HasColumnName("OpenverseId");
-            // One song per provider result, also if two imports of the same track race.
-            // SQLite allows any number of rows without an id in a unique index.
+            // Unique also under racing imports; SQLite allows many NULLs.
             song.HasIndex(s => s.ExternalId).IsUnique();
         }
     }

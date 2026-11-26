@@ -1,11 +1,10 @@
 using Radiosender.Models;
-using Radiosender.Services;
+using Radiosender.Services.Library;
 
 namespace Radiosender.Controllers;
 
 public class LibraryController(SongRepository repository)
 {
-    /// <summary>Returns all songs whose title or artist contains <paramref name="query"/> (case-insensitive).</summary>
     public IReadOnlyList<Song> Search(string? query)
     {
         var songs = repository.GetAll();
@@ -13,14 +12,10 @@ public class LibraryController(SongRepository repository)
             return songs;
 
         query = query.Trim();
-        return songs
-            .Where(s => s.Title.Contains(query, StringComparison.OrdinalIgnoreCase)
-                        || s.Artist.Contains(query, StringComparison.OrdinalIgnoreCase))
-            .ToList();
+        return [.. songs.Where(s => s.Title.Contains(query, StringComparison.OrdinalIgnoreCase)
+                                    || s.Artist.Contains(query, StringComparison.OrdinalIgnoreCase))];
     }
 
-    /// <summary>Writes the editable metadata; file path, duration and source keep their stored values.</summary>
-    /// <returns><c>false</c> if the song no longer exists.</returns>
     public bool Update(long id, string title, string artist, string? license, string? attribution)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
@@ -37,6 +32,5 @@ public class LibraryController(SongRepository repository)
         return repository.Update(song);
     }
 
-    /// <returns><c>false</c> if the song no longer exists.</returns>
     public bool Delete(long id) => repository.Delete(id);
 }

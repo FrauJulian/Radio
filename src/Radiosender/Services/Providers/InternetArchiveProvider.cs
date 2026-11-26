@@ -4,18 +4,15 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using Radiosender.Models;
 
-namespace Radiosender.Services;
+namespace Radiosender.Services.Providers;
 
-/// <summary>
-/// Searches the Internet Archive for Creative Commons licensed MP3 audio. The search API returns items
-/// (often whole albums), so each item's file list is fetched as well and every MP3 becomes one result.
-/// </summary>
+// Search returns items (often albums); each item's file list is fetched, every MP3 is one result.
 public partial class InternetArchiveProvider(HttpClient http) : IMusicProvider
 {
     private const string SearchUrl = "https://archive.org/advancedsearch.php";
     private const string MetadataUrl = "https://archive.org/metadata/";
 
-    // One request per item follows the search, so the item count stays small.
+    // One extra request per item: keep small.
     private const int Items = 8;
     private const int TracksPerItem = 5;
 
@@ -23,7 +20,7 @@ public partial class InternetArchiveProvider(HttpClient http) : IMusicProvider
 
     public async Task<IReadOnlyList<MusicTrack>> SearchAsync(string query, CancellationToken cancellationToken = default)
     {
-        // The query language is Lucene; its operators are taken out of the user's words so they cannot change the filter.
+        // Strip Lucene operators: user input must not change the filter.
         var words = string.Join(' ', LuceneSyntax().Replace(query, " ").Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
         if (words.Length == 0)
             return [];
@@ -36,12 +33,12 @@ public partial class InternetArchiveProvider(HttpClient http) : IMusicProvider
             throw new MusicProviderException($"{Name}-Suche fehlgeschlagen: unerwartete Antwort.");
 
         var perItem = await Task.WhenAll(docs.EnumerateArray().Select(doc => TracksOfAsync(doc, cancellationToken)));
-        return perItem.SelectMany(tracks => tracks).ToList();
+        return [.. perItem.SelectMany(tracks => tracks)];
     }
 
     private async Task<List<MusicTrack>> TracksOfAsync(JsonElement item, CancellationToken cancellationToken)
     {
-        var tracks = new List<MusicTrack>();
+        List<MusicTrack> tracks = [];
         if (ProviderParsing.Text(item, "identifier") is not { } identifier)
             return tracks;
 
@@ -69,11 +66,10 @@ public partial class InternetArchiveProvider(HttpClient http) : IMusicProvider
                     continue;
                 var title = ProviderParsing.Text(file, "title") ?? Path.GetFileNameWithoutExtension(name);
                 var creator = ProviderParsing.Text(file, "creator") ?? ProviderParsing.Text(file, "artist") ?? ProviderParsing.Text(item, "creator");
-                // A file name can contain folders; every part is escaped on its own.
+                // Name may contain folders: escape each segment.
                 var path = string.Join('/', name.Split('/').Select(Uri.EscapeDataString));
                 tracks.Add(new MusicTrack
                 {
-                    // Prefixed, so the id cannot collide with one from another provider.
                     Id = $"archive:{identifier}/{name}",
                     Title = title,
                     Creator = creator,

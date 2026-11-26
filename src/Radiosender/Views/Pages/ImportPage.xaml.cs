@@ -7,22 +7,21 @@ using Microsoft.Win32;
 using NAudio.Wave;
 using Radiosender.Controllers;
 using Radiosender.Models;
-using Radiosender.Services;
+using Radiosender.Services.Providers;
 using Wpf.Ui.Controls;
 
 namespace Radiosender.Views.Pages;
 
-/// <summary>Adds music to the library from local files or from an online provider; both list their results in one place.</summary>
 public partial class ImportPage : Page
 {
     private readonly OnlineImportController _online;
     private readonly UploadController _upload;
 
     private readonly ObservableCollection<SessionRow> _session = [];
-    // Preview has its own output, so it never interrupts a running broadcast.
+    // Own output: never interrupts broadcast.
     private WaveOut? _previewOutput;
     private MediaFoundationReader? _previewReader;
-    private int _previewId; // changes on every start and stop; a late callback with an old id is ignored
+    private int _previewId; // bumped on start/stop; late callbacks with old id ignored
     private bool _uploading;
     private bool _busy;
     private bool _previewing;
@@ -32,7 +31,6 @@ public partial class ImportPage : Page
         _online = online;
         _upload = upload;
         InitializeComponent();
-        // One provider needs no choice: the tab carries its name. Several get a list next to the search box.
         var providers = _online.Providers;
         ProviderBox.ItemsSource = providers;
         ProviderBox.SelectedIndex = providers.Count > 0 ? 0 : -1;
@@ -47,8 +45,6 @@ public partial class ImportPage : Page
             GridColumns.Fit(Session);
         };
     }
-
-    // ---- From computer ----
 
     private async void OnChooseFiles(object sender, RoutedEventArgs e)
     {
@@ -75,7 +71,6 @@ public partial class ImportPage : Page
             await UploadAsync(paths);
     }
 
-    // Files are imported one by one on a pool thread; each result shows up as soon as it is known.
     private async Task UploadAsync(IReadOnlyList<string> paths)
     {
         if (paths.Count == 0) return;
@@ -103,8 +98,6 @@ public partial class ImportPage : Page
             UploadProgressPanel.Visibility = Visibility.Collapsed;
         }
     }
-
-    // ---- Online providers ----
 
     private ResultRow? Selected => Results.SelectedItem as ResultRow;
 
@@ -141,8 +134,7 @@ public partial class ImportPage : Page
         }
     }
 
-    // One button: starts the preview, or stops the running one.
-    // NAudio, not WPF's MediaPlayer: that one cannot open https URLs.
+    // NAudio, not WPF MediaPlayer: MediaPlayer cannot open https.
     private async void OnPreview(object sender, RoutedEventArgs e)
     {
         if (_previewing)
@@ -157,7 +149,6 @@ public partial class ImportPage : Page
         var id = ++_previewId;
         try
         {
-            // Connects to the server, so it runs off the UI thread. The file is streamed, nothing is saved.
             var reader = await Task.Run(() => new MediaFoundationReader(uri.AbsoluteUri));
             if (id != _previewId) // stopped or page left in the meantime
             {
@@ -200,7 +191,7 @@ public partial class ImportPage : Page
         _previewOutput = null;
         _previewReader = null;
         SetPreviewing(false);
-        // Disposing waits for the audio thread, which can sit in a network read; not on the UI thread.
+        // Off UI thread: Dispose waits for audio thread, may block in network read.
         if (output is not null || reader is not null)
             Task.Run(() =>
             {
@@ -211,10 +202,9 @@ public partial class ImportPage : Page
 
     private void OnResultDoubleClick(object sender, MouseButtonEventArgs e) => OnImport(sender, e);
 
-    // Everything selected that can still be imported.
-    private List<ResultRow> Importable => Results.SelectedItems.OfType<ResultRow>().Where(r => r.CanImport).ToList();
+    private List<ResultRow> Importable => [.. Results.SelectedItems.OfType<ResultRow>().Where(r => r.CanImport)];
 
-    // One after the other: providers limit anonymous requests, and each result shows up as soon as it is done.
+    // Sequential: providers rate-limit anonymous requests.
     private async void OnImport(object sender, RoutedEventArgs e)
     {
         var rows = Importable;
@@ -240,7 +230,7 @@ public partial class ImportPage : Page
                 }
                 catch (Exception ex) when (ex is MusicProviderException or Microsoft.EntityFrameworkCore.DbUpdateException)
                 {
-                    // The database error text is technical and English; the usual cause is a song that is already stored.
+                    // DB error text is technical English; usual cause: song already stored.
                     var reason = ex is MusicProviderException ? ex.Message : "Der Song konnte nicht in der Bibliothek gespeichert werden.";
                     _session.Insert(0, SessionRow.Failed(row.Track.Title, reason));
                     failed++;
@@ -283,7 +273,6 @@ public partial class ImportPage : Page
         var importable = Importable.Count;
         ImportButton.IsEnabled = !_busy && importable > 0;
         ImportButton.Content = importable > 1 ? $"{importable} in Bibliothek importieren" : "In Bibliothek importieren";
-        // Why the selection cannot be imported ("In Bibliothek", "Keine Dauer"); shown on the disabled button.
         ImportButton.ToolTip = importable == 0 && Selected is { } blocked ? blocked.Status : null;
     }
 
@@ -294,8 +283,6 @@ public partial class ImportPage : Page
         Message.Message = message;
         Message.IsOpen = true;
     }
-
-    // ---- Shared ----
 
     private void OnOpenLibrary(object sender, RoutedEventArgs e) =>
         (Window.GetWindow(this) as MainWindow)?.RootNavigation.Navigate(typeof(LibraryPage));

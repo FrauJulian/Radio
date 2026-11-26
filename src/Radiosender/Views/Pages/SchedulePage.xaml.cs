@@ -4,7 +4,9 @@ using System.Windows.Controls;
 using System.Windows.Threading;
 using Radiosender.Controllers;
 using Radiosender.Models;
-using Radiosender.Services;
+using Radiosender.Services.Audio;
+using Radiosender.Services.Scheduling;
+using Radiosender.Services.Streaming;
 using Wpf.Ui.Controls;
 
 namespace Radiosender.Views.Pages;
@@ -17,16 +19,14 @@ public partial class SchedulePage : Page
     private int _scrolledTo = -1;
     private bool _shownPlaying;
 
-    // Weekday names in the start list follow the interface language, not the Windows setting.
+    // UI language, not Windows culture.
     private static readonly System.Globalization.CultureInfo German = new("de-DE");
 
-    // Bound once and updated row by row, so a click never rebuilds the whole list.
     private readonly ObservableCollection<TimelineRow> _rows = [];
 
-    // A controller call is running on a pool thread; the buttons that would collide with it are off.
     private bool _working;
 
-    // Optimistic state: what the user just asked for, shown before the engine has caught up.
+    // Optimistic: shown before engine catches up.
     private bool? _expectPlaying;
 
     private readonly Microphone _microphone;
@@ -41,7 +41,7 @@ public partial class SchedulePage : Page
         _mixer = output.Mixer;
         InitializeComponent();
         Timeline.ItemsSource = _rows;
-        // Also refreshes the buttons: Finished can arrive just before the engine reports it stopped.
+        // Buttons too: Finished can arrive before engine reports stopped.
         _progressTimer.Tick += (_, _) =>
         {
             UpdateButtons();
@@ -49,7 +49,6 @@ public partial class SchedulePage : Page
         };
     }
 
-    // The page can be shown again while a broadcast runs, so it always rebuilds from the controller.
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         _controller.ItemStarted += OnItemStarted;
@@ -65,13 +64,12 @@ public partial class SchedulePage : Page
         ListenToBroadcastBox.IsChecked = _mixer.ListenToBroadcast;
         MusicForMeSlider.IsEnabled = !_mixer.ListenToBroadcast;
         _loading = false;
-        ShowMicrophone(); // it stays on while the user visits other pages
+        ShowMicrophone();
         ShowLive();
         FillStartTimes();
         if (_controller.Plan.Count > 0)
             UnlimitedBox.IsChecked = _controller.IsUnlimited;
 
-        // The library can change on other pages.
         RequestSong.ItemsSource = _controller.LibrarySongs()
             .OrderBy(s => s.Artist).ThenBy(s => s.Title)
             .Select(s => new SongOption(s.Id, $"{(string.IsNullOrWhiteSpace(s.Artist) ? s.Title : $"{s.Artist} - {s.Title}")} ({s.Duration:m\\:ss})"))
@@ -90,7 +88,7 @@ public partial class SchedulePage : Page
         _progressTimer.Stop();
     }
 
-    // The next 12 full hours; rebuilt when the list opens, so it never offers a past hour.
+    // Rebuilt on dropdown open: never offers a past hour.
     private void FillStartTimes()
     {
         var selected = (StartBox.SelectedItem as StartOption)?.Time;
@@ -128,10 +126,6 @@ public partial class SchedulePage : Page
         });
     }
 
-    /// <summary>
-    /// Runs a controller call that can take a moment (planning, waiting for the audio thread to stop)
-    /// off the UI thread, so the window stays responsive. Returns <c>false</c> after showing the error.
-    /// </summary>
     private async Task<bool> RunAsync(string errorTitle, Action work)
     {
         _working = true;
@@ -171,7 +165,6 @@ public partial class SchedulePage : Page
 
     private void OnMoveDown(object sender, RoutedEventArgs e) => MoveSelected(1);
 
-    // The selection follows the item, so it can be moved several steps in a row.
     private void MoveSelected(int offset) => ChangeSelected(row =>
     {
         _controller.Move(row.Index, offset);
@@ -185,7 +178,6 @@ public partial class SchedulePage : Page
         _mixer.MusicForOthers = (float)MusicForOthersSlider.Value;
         _mixer.MicrophoneForOthers = (float)MicrophoneForOthersSlider.Value;
         _mixer.ListenToBroadcast = ListenToBroadcastBox.IsChecked == true;
-        // While the monitor copies the broadcast, its own music level has no effect.
         MusicForMeSlider.IsEnabled = !_mixer.ListenToBroadcast;
     }
 
@@ -195,7 +187,6 @@ public partial class SchedulePage : Page
         MicButton.IsEnabled = false;
         try
         {
-            // Opening the devices can take a moment, so it runs off the UI thread.
             await Task.Run(() =>
             {
                 if (turnOn) _microphone.TurnOn();
@@ -214,7 +205,6 @@ public partial class SchedulePage : Page
     private void ShowMicrophone()
     {
         var on = _microphone.IsOn;
-        // The label names the action; the red button shows that the microphone is live.
         MicButton.Content = on ? "Mikro aus" : "Mikro ein";
         MicButton.Icon = new SymbolIcon(on ? SymbolRegular.MicOff24 : SymbolRegular.Mic24);
         MicButton.Appearance = on ? ControlAppearance.Danger : ControlAppearance.Secondary;
@@ -232,7 +222,6 @@ public partial class SchedulePage : Page
             }
             else
             {
-                // Opening the devices and the connection can take a moment, so it runs off the UI thread.
                 await Task.Run(() => _live.StartAsync());
                 Message.IsOpen = false;
             }
@@ -245,7 +234,7 @@ public partial class SchedulePage : Page
         ShowLive();
     }
 
-    // Comes from a background thread; the stream may have ended.
+    // Background thread.
     private void OnLiveProblem(object? sender, string message) => Dispatcher.BeginInvoke(() =>
     {
         ShowMessage(InfoBarSeverity.Warning, "laut.fm", message);
@@ -255,7 +244,7 @@ public partial class SchedulePage : Page
     private void ShowLive()
     {
         var live = _live.IsLive;
-        // Stays visible while live, so a stream can be stopped after laut.fm was switched off.
+        // Visible while live: stoppable after laut.fm was switched off.
         LiveButton.Visibility = _live.IsEnabled || live ? Visibility.Visible : Visibility.Collapsed;
         LiveButton.Content = live ? "Live beenden" : "Live";
         LiveButton.Appearance = live ? ControlAppearance.Danger : ControlAppearance.Secondary;
@@ -308,7 +297,6 @@ public partial class SchedulePage : Page
     private async void OnPlayToggle(object sender, RoutedEventArgs e)
     {
         var stop = _controller.IsPlaying;
-        // The button and the card switch at once; stopping waits for the audio thread in the background.
         _expectPlaying = !stop;
         if (stop)
             NowKind.Visibility = Visibility.Collapsed;
@@ -321,7 +309,7 @@ public partial class SchedulePage : Page
         if (!_loading) _controller.Volume = (float)e.NewValue;
     }
 
-    // Engine events arrive on a pool thread. BeginInvoke, not Invoke: Stop waits for that thread.
+    // BeginInvoke, not Invoke: engine Stop waits for this pool thread -> deadlock.
     private void OnItemStarted(object? sender, int index) => Dispatcher.BeginInvoke(ShowCurrent);
 
     private void OnItemFailed(object? sender, string message) =>
@@ -333,7 +321,6 @@ public partial class SchedulePage : Page
         ShowCurrent();
     });
 
-    // Syncs the rows with the controller; the selection is the user's swap target and is kept.
     private void ShowCurrent()
     {
         var item = _controller.CurrentItem;
@@ -341,7 +328,7 @@ public partial class SchedulePage : Page
         var plan = _controller.Plan;
 
         var selected = Timeline.SelectedIndex;
-        // Rows are records: only the ones whose content changed are replaced.
+        // Replace changed rows only: keeps selection (swap target).
         for (var i = 0; i < plan.Count; i++)
         {
             var updated = new TimelineRow(i, plan[i], i == current);
@@ -352,12 +339,10 @@ public partial class SchedulePage : Page
         }
         while (_rows.Count > plan.Count)
             _rows.RemoveAt(_rows.Count - 1);
-        var rows = _rows;
         GridColumns.Fit(Timeline);
-        Timeline.SelectedIndex = selected < rows.Count ? selected : -1;
-        // Follow the broadcast when it moves on; otherwise keep the user's row in view.
-        if (current != _scrolledTo && current >= 0 && current < rows.Count)
-            Timeline.ScrollIntoView(rows[current]);
+        Timeline.SelectedIndex = selected < _rows.Count ? selected : -1;
+        if (current != _scrolledTo && current >= 0 && current < _rows.Count)
+            Timeline.ScrollIntoView(_rows[current]);
         else if (Timeline.SelectedItem is { } row)
             Timeline.ScrollIntoView(row);
         _scrolledTo = current;
@@ -376,7 +361,6 @@ public partial class SchedulePage : Page
         var playing = _expectPlaying ?? _controller.IsPlaying;
         PlayButton.IsEnabled = !_working && (playing || _controller.Plan.Count > 0);
         CreateButton.IsEnabled = StartNowButton.IsEnabled = !_working;
-        // Called every timer tick, so the label and icon change only with the state.
         if (playing != _shownPlaying)
         {
             _shownPlaying = playing;
@@ -386,7 +370,6 @@ public partial class SchedulePage : Page
 
         var row = Timeline.SelectedItem as TimelineRow;
 
-        // Only items that are not on air or over can be moved or removed; the one on air can still be edited.
         var count = _controller.Plan.Count;
         var current = _controller.CurrentIndex;
         bool Editable(int i) => !_working && i >= 0 && i < count && (!playing || i > current);
@@ -406,7 +389,6 @@ public partial class SchedulePage : Page
             _ => null,
         };
         SwapHint.Text = blocker ?? $"Ersetzt das Element um {row!.Item.Start:HH:mm:ss}.";
-        // The hint only matters once a song is chosen.
         var requested = RequestSong.SelectedItem is not null;
         SwapHint.Visibility = requested ? Visibility.Visible : Visibility.Collapsed;
         SwapButton.IsEnabled = !_working && requested && blocker is null;
@@ -417,7 +399,7 @@ public partial class SchedulePage : Page
         if (_expectPlaying == false || _controller.CurrentItem is not { } item)
         {
             NowProgress.Value = 0;
-            // Checked here, not in ShowCurrent: the engine starts waiting a moment after Start.
+            // Here, not in ShowCurrent: engine starts waiting shortly after Start.
             var waiting = _expectPlaying == false ? null : _controller.WaitingUntil;
             NowTitle.Text = waiting is { } at ? $"Auf Sendung um {at:HH:mm:ss}" : "Nichts auf Sendung";
             NowTime.Text = " ";

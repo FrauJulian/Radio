@@ -2,9 +2,8 @@ using System.IO;
 using System.Net.Http;
 using Radiosender.Models;
 
-namespace Radiosender.Services;
+namespace Radiosender.Services.Providers;
 
-/// <summary>Downloads the audio file of a <see cref="MusicTrack"/> into the music folder, for any provider.</summary>
 public class TrackDownloader(HttpClient http, string musicFolder)
 {
     public static string DefaultMusicFolder { get; } = Path.Combine(
@@ -14,15 +13,10 @@ public class TrackDownloader(HttpClient http, string musicFolder)
 
     private static readonly HashSet<string> KnownExtensions = ["mp3", "ogg", "oga", "wav", "flac", "m4a", "aac", "opus"];
 
-    /// <summary>Limit for the whole download; <see cref="HttpClient.Timeout"/> only covers the response headers here.</summary>
-    public TimeSpan DownloadTimeout { get; init; } = TimeSpan.FromMinutes(3);
+    // Whole download; HttpClient.Timeout only covers headers (ResponseHeadersRead).
+    private static readonly TimeSpan DownloadTimeout = TimeSpan.FromMinutes(3);
 
-    /// <summary>
-    /// Downloads <see cref="MusicTrack.Url"/> into the music folder under a new, unique file name.
-    /// On any failure no file is left behind.
-    /// </summary>
-    /// <returns>Full path of the downloaded file.</returns>
-    /// <exception cref="MusicProviderException">The download failed or the file is not acceptable.</exception>
+    /// <exception cref="MusicProviderException">Download failed or file not acceptable.</exception>
     public async Task<string> DownloadAsync(MusicTrack track, CancellationToken cancellationToken = default)
     {
         if (!Uri.TryCreate(track.Url, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps)
@@ -58,7 +52,7 @@ public class TrackDownloader(HttpClient http, string musicFolder)
         }
         catch (Exception e)
         {
-            // "await using" in the try block has already closed the file here.
+            // await using already closed the file.
             if (path is not null)
                 File.Delete(path);
             if (e is MusicProviderException || cancellationToken.IsCancellationRequested)
@@ -81,7 +75,7 @@ public class TrackDownloader(HttpClient http, string musicFolder)
         {
             var candidate = Path.Combine(musicFolder, i == 1 ? $"{name}.{extension}" : $"{name} ({i}).{extension}");
             if (File.Exists(candidate)) continue;
-            // CreateNew never overwrites; path is only reported once this call owns the file.
+            // CreateNew never overwrites; path set only once owned.
             var stream = new FileStream(candidate, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920, useAsync: true);
             path = candidate;
             return stream;

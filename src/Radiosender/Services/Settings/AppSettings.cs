@@ -3,51 +3,42 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Radiosender.Services.Scheduling;
 
-namespace Radiosender.Services;
+namespace Radiosender.Services.Settings;
 
-/// <summary>What the user can change on the Settings page. The defaults are the values the app shipped with.</summary>
 public record AppSettings
 {
-    public const int MinAlertSeconds = 5;
-    public const int MaxAlertSeconds = 300;
+    private const int MinAlertSeconds = 5;
+    private const int MaxAlertSeconds = 300;
+
+    private static readonly JsonSerializerOptions WriteOptions = new() { WriteIndented = true };
 
     public bool NewsAlert { get; init; } = true;
 
-    /// <summary>How long before a news item the reminder appears.</summary>
     public int NewsAlertSeconds { get; init; } = 30;
 
     public bool NewsAlertSound { get; init; } = true;
 
     public bool ModeratorAlert { get; init; } = true;
 
-    /// <summary>How long before a moderator item the reminder appears.</summary>
     public int ModeratorAlertSeconds { get; init; } = 30;
 
     public bool ModeratorAlertSound { get; init; } = true;
 
-    /// <summary>News time per hour, split over the two news at :00 and :30.</summary>
     public int NewsMinutesPerHour { get; init; } = 10;
 
-    /// <summary>Target; the plan gets as close as the song lengths allow.</summary>
     public int ModeratorMinutesPerHour { get; init; } = 10;
-
-    /// <summary>Target; the plan gets as close as the song lengths allow.</summary>
     public int AdMinutesPerHour { get; init; } = 20;
 
-    /// <summary>Playback device for the listeners; <c>null</c> is the Windows default device.</summary>
-    public string? BroadcastDevice { get; init; }
+    public string? BroadcastDevice { get; init; } // null: Windows default device
 
-    /// <summary>Playback device for the person at the desk; <c>null</c> means no device of its own.</summary>
-    public string? MonitorDevice { get; init; }
+    public string? MonitorDevice { get; init; } // null: no monitor device
 
-    /// <summary>Streaming to laut.fm and its library on the Import page; the Live button shows only while this is on.</summary>
     public bool LautFmEnabled { get; init; }
 
-    /// <summary>The station's id in Radioadmin, needed for the library.</summary>
     public string LautFmStationId { get; init; } = "";
 
-    /// <summary>Live access data from Radioadmin, "Live senden".</summary>
     public string LautFmHost { get; init; } = "";
 
     public int LautFmPort { get; init; } = 8080;
@@ -56,11 +47,10 @@ public record AppSettings
 
     public string LautFmUser { get; init; } = "source";
 
-    /// <summary>Kept in memory as is; the file only holds it encrypted for the Windows user.</summary>
+    // Secrets: plain in memory, DPAPI-encrypted in the file via the Protected* properties.
     [JsonIgnore]
     public string LautFmPassword { get; init; } = "";
 
-    /// <summary>The Radioadmin login token for the library; stored encrypted like the password.</summary>
     [JsonIgnore]
     public string LautFmToken { get; init; } = "";
 
@@ -70,13 +60,12 @@ public record AppSettings
     [JsonInclude, JsonPropertyName("LautFmToken")]
     private string? ProtectedLautFmToken { get => Protect(LautFmToken); init => LautFmToken = Unprotect(value); }
 
-    // Records print every property; the password and token stay out of logs and debugger views.
+    // Record ToString would leak secrets into logs/debugger.
     public override string ToString() => nameof(AppSettings);
 
     public static string DefaultPath { get; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Radiosender", "settings.json");
 
-    /// <summary>The first problem with these values as a message for the user, or <c>null</c> when they are fine.</summary>
     public string? Validate()
     {
         if (NewsAlertSeconds is < MinAlertSeconds or > MaxAlertSeconds || ModeratorAlertSeconds is < MinAlertSeconds or > MaxAlertSeconds)
@@ -108,7 +97,6 @@ public record AppSettings
         ModeratorPerHour = TimeSpan.FromMinutes(ModeratorMinutesPerHour),
     };
 
-    /// <summary>Reads the settings; a missing, unreadable or invalid file gives the defaults.</summary>
     public static AppSettings Load(string path)
     {
         try
@@ -122,20 +110,18 @@ public record AppSettings
         }
     }
 
-    /// <exception cref="IOException">The file cannot be written.</exception>
-    /// <exception cref="UnauthorizedAccessException">The file cannot be written.</exception>
     public void Save(string path)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllText(path, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
+        File.WriteAllText(path, JsonSerializer.Serialize(this, WriteOptions));
     }
 
-    // DPAPI: only this Windows user on this computer can read the value back.
+    // DPAPI: only this Windows user on this machine can decrypt.
     private static string? Protect(string secret) => secret.Length == 0
         ? null
         : Convert.ToBase64String(ProtectedData.Protect(Encoding.UTF8.GetBytes(secret), null, DataProtectionScope.CurrentUser));
 
-    // A value from another user or computer cannot be read; the user enters it again.
+    // Other user/machine: unreadable, user re-enters it.
     private static string Unprotect(string? stored)
     {
         if (string.IsNullOrEmpty(stored))

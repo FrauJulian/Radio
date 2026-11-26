@@ -1,6 +1,6 @@
 using System.Net;
 using System.Text;
-using Radiosender.Services;
+using Radiosender.Services.Providers;
 
 namespace Radiosender.Tests;
 

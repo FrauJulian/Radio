@@ -1,15 +1,12 @@
 using Radiosender.Models;
 
-namespace Radiosender.Services;
+namespace Radiosender.Services.Streaming;
 
-/// <summary>
-/// The stream title for each item. laut.fm starts its ad break when the title is "START_AD_BREAK" and
-/// wants that at most once in 15 minutes, so later ad items within that time keep their own title.
-/// </summary>
+// laut.fm: title AdBreak starts an ad break, max once per 15 min; later ads keep their own title.
 public class StreamTitles(Func<DateTime> now)
 {
     public const string AdBreak = "START_AD_BREAK";
-    public static readonly TimeSpan MinAdBreakSpacing = TimeSpan.FromMinutes(15);
+    private static readonly TimeSpan MinAdBreakSpacing = TimeSpan.FromMinutes(15);
 
     private DateTime? _lastAdBreak;
 

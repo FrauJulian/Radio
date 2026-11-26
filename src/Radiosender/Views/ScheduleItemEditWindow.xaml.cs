@@ -5,10 +5,6 @@ using Wpf.Ui.Controls;
 
 namespace Radiosender.Views;
 
-/// <summary>
-/// Dialog for the title of a news, ad or moderator item and, for news and moderator items, its length.
-/// Only collects input; the caller changes the schedule.
-/// </summary>
 public partial class ScheduleItemEditWindow : FluentWindow
 {
     private static readonly string[] DurationFormats = [@"m\:ss", @"mm\:ss"];
@@ -20,7 +16,6 @@ public partial class ScheduleItemEditWindow : FluentWindow
         TitleBox.Text = item.Title;
         DurationBox.Text = item.Duration.ToString(@"m\:ss");
         Duration = item.Duration;
-        // Ads keep their length.
         DurationLabel.IsEnabled = DurationBox.IsEnabled = item.Kind is ScheduleItemKind.News or ScheduleItemKind.Moderator;
     }
 

@@ -2,18 +2,14 @@ using System.IO;
 using NAudio.Wave;
 using Radiosender.Models;
 
-namespace Radiosender.Services;
+namespace Radiosender.Services.Library;
 
-/// <summary>An import failure with a message that can be shown to the user.</summary>
-public class SongImportException(string message, Exception? innerException = null) : Exception(message, innerException);
-
-/// <summary>Copies an uploaded MP3 or WAV file into the music folder and saves it as a song.</summary>
 public class SongImportService(SongRepository songs, string musicDirectory)
 {
     public static string DefaultMusicDirectory { get; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Radiosender", "Music");
 
-    public static IReadOnlyList<string> SupportedExtensions { get; } = [".mp3", ".wav"];
+    private static IReadOnlyList<string> SupportedExtensions { get; } = [".mp3", ".wav"];
 
     /// <exception cref="SongImportException">The file is not a readable MP3 or WAV file with audio.</exception>
     public Song Import(string sourcePath)
@@ -74,7 +70,7 @@ public class SongImportService(SongRepository songs, string musicDirectory)
         }
         catch (Exception e)
         {
-            // NAudio and Media Foundation throw many unrelated exception types for corrupt files.
+            // NAudio/Media Foundation throw many unrelated types on corrupt files.
             throw new SongImportException("Die Datei ist keine lesbare MP3- oder WAV-Datei.", e);
         }
 

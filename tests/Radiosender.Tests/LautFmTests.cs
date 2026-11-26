@@ -5,7 +5,11 @@ using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 using Radiosender.Controllers;
 using Radiosender.Models;
-using Radiosender.Services;
+using Radiosender.Services.Audio;
+using Radiosender.Services.Library;
+using Radiosender.Services.Providers;
+using Radiosender.Services.Settings;
+using Radiosender.Services.Streaming;
 
 namespace Radiosender.Tests;
 

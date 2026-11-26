@@ -1,12 +1,12 @@
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
-using Radiosender.Services;
+using Radiosender.Services.Audio;
+using Radiosender.Services.Settings;
 using Wpf.Ui.Controls;
 
 namespace Radiosender.Views.Pages;
 
-/// <summary>Edits <see cref="AppSettings"/>. Nothing changes until Save.</summary>
 public partial class SettingsPage : Page
 {
     private readonly SettingsStore _store;
@@ -17,16 +17,14 @@ public partial class SettingsPage : Page
         InitializeComponent();
     }
 
-    // Loaded fires on every navigation to the page, so unsaved edits from an earlier visit are dropped.
     private void OnLoaded(object sender, RoutedEventArgs e) => Show(_store.Current);
 
-    // First entry of each list: the choice that names no device.
+    // Index 0 of each list = no device name (null).
     private const string DefaultDevice = "Windows-Standardgerät";
     private const string NoDevice = "Kein eigenes Gerät";
 
     private void Show(AppSettings settings)
     {
-        // Read again on every visit, so a headset plugged in meanwhile shows up.
         var devices = ProgramOutput.DeviceNames().ToList();
         BroadcastDeviceBox.ItemsSource = devices.Prepend(DefaultDevice).ToList();
         MonitorDeviceBox.ItemsSource = devices.Prepend(NoDevice).ToList();
@@ -52,11 +50,10 @@ public partial class SettingsPage : Page
         OnLautFmChanged(this, new RoutedEventArgs());
     }
 
-    // The access fields only matter while laut.fm is on.
     private void OnLautFmChanged(object sender, RoutedEventArgs e) =>
         LautFmFields.Visibility = LautFmSwitch.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
 
-    // An emptied number box counts as its default.
+    // Empty number box -> default.
     private static AppSettings Defaults { get; } = new();
 
     private AppSettings Read() => new()

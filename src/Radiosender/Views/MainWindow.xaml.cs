@@ -3,7 +3,7 @@ using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 using Radiosender.Controllers;
 using Radiosender.Models;
-using Radiosender.Services;
+using Radiosender.Services.Settings;
 using Radiosender.Views.Pages;
 using Wpf.Ui.Controls;
 
@@ -21,16 +21,13 @@ public partial class MainWindow : FluentWindow
         _schedule = schedule;
         _settings = settings;
         InitializeComponent();
-        // The navigation view asks the container for each page, so pages get their controllers injected.
         RootNavigation.SetServiceProvider(services);
-        // Re-themes the app when the user switches the Windows theme while it runs.
         Wpf.Ui.Appearance.SystemThemeWatcher.Watch(this);
         Loaded += (_, _) => RootNavigation.Navigate(typeof(SchedulePage));
         _reminderTimer.Tick += (_, _) => RemindSpeaker();
         _reminderTimer.Start();
     }
 
-    // Shortly before news or moderator talk goes on air, the person at the microphone gets a heads-up.
     private void RemindSpeaker()
     {
         var settings = _settings.Current;
@@ -43,7 +40,6 @@ public partial class MainWindow : FluentWindow
         var what = item.KindName;
         if (isNews ? settings.NewsAlertSound : settings.ModeratorAlertSound)
             PlayBing();
-        // A dialog in the middle of the screen that stays until OK is clicked; the broadcast keeps running behind it.
         _ = new Wpf.Ui.Controls.MessageBox
         {
             Title = "Gleich bist du dran.",
@@ -54,7 +50,6 @@ public partial class MainWindow : FluentWindow
         }.ShowDialogAsync();
     }
 
-    // A short generated tone on its own output, so it sounds over the running broadcast.
     private static void PlayBing()
     {
         try
@@ -68,7 +63,7 @@ public partial class MainWindow : FluentWindow
         }
         catch (Exception ex) when (ex is NAudio.MmException or InvalidOperationException)
         {
-            // No audio device: the dialog still reminds the speaker.
+            // No audio device: dialog still reminds.
         }
     }
 }

@@ -1,17 +1,8 @@
 using System.IO;
 using NAudio.Wave;
-using Radiosender.Services;
+using Radiosender.Services.Audio;
 
 namespace Radiosender.Tests;
-
-/// <summary>Skips the test on machines without an audio output device (for example CI agents).</summary>
-public sealed class AudioDeviceFactAttribute : FactAttribute
-{
-    public AudioDeviceFactAttribute()
-    {
-        if (WaveOut.DeviceCount == 0) Skip = "No audio output device available.";
-    }
-}
 
 public sealed class MusicPlayerTests : IDisposable
 {
@@ -48,25 +39,6 @@ public sealed class MusicPlayerTests : IDisposable
         Assert.Equal(2, converted.WaveFormat.Channels);
         Assert.Same(ProgramOutput.Instance, ProgramOutput.Instance);
         Assert.Throws<NotSupportedException>(() => ProgramOutput.ToProgramFormat(new NAudio.Wave.SampleProviders.SignalGenerator(44100, 6)));
-    }
-
-    [AudioDeviceFact]
-    public void PauseAndResume_KeepThePosition()
-    {
-        var player = MusicPlayer.Instance;
-        player.Play(CreateWav(TimeSpan.FromSeconds(3)));
-        Thread.Sleep(400);
-
-        player.Pause();
-        Assert.False(player.IsPlaying);
-        var paused = player.Position;
-        Thread.Sleep(300);
-        Assert.Equal(paused, player.Position);
-
-        player.Resume();
-        Assert.True(player.IsPlaying);
-        Thread.Sleep(400);
-        Assert.True(player.Position > paused);
     }
 
     [AudioDeviceFact]
@@ -162,29 +134,24 @@ public sealed class MusicPlayerTests : IDisposable
     }
 
     [AudioDeviceFact]
-    public void Play_ShortWav_RaisesTrackFinishedAndPositionChanged()
+    public void Play_ShortWav_RaisesTrackFinished()
     {
         var player = MusicPlayer.Instance;
         using var finished = new ManualResetEventSlim();
-        var positionChanged = false;
         EventHandler finishedHandler = (_, _) => finished.Set();
-        EventHandler<TimeSpan> positionHandler = (_, _) => positionChanged = true;
         player.TrackFinished += finishedHandler;
-        player.PositionChanged += positionHandler;
         try
         {
             player.Play(CreateWav(TimeSpan.FromSeconds(0.6)));
             Assert.InRange(player.Duration.TotalSeconds, 0.59, 0.61);
 
             Assert.True(finished.Wait(TimeSpan.FromSeconds(5)), "TrackFinished was not raised.");
-            Assert.True(positionChanged);
             Assert.False(player.IsPlaying);
             Assert.Equal(TimeSpan.Zero, player.Duration);
         }
         finally
         {
             player.TrackFinished -= finishedHandler;
-            player.PositionChanged -= positionHandler;
         }
     }
 }

@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using Radiosender.Models;
-using Radiosender.Services;
+using Radiosender.Services.Audio;
+using Radiosender.Services.Scheduling;
 
 namespace Radiosender.Tests;
 

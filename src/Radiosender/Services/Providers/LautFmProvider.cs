@@ -1,20 +1,17 @@
 using System.Net.Http;
 using System.Text.Json;
 using Radiosender.Models;
+using Radiosender.Services.Settings;
 
-namespace Radiosender.Services;
+namespace Radiosender.Services.Providers;
 
-/// <summary>
-/// Searches the music library of the user's laut.fm station, so laut.fm tracks can be imported next to
-/// local songs. Uses the API behind Radioadmin with the user's login token. laut.fm does not publish
-/// this API for other programs, so it can change without notice.
-/// </summary>
+// Unofficial Radioadmin API with the user's token; may change without notice.
 public class LautFmProvider(HttpClient http, Func<AppSettings> settings) : IMusicProvider
 {
-    public const string ApiBase = "https://api.radioadmin.laut.fm/";
+    private const string ApiBase = "https://api.radioadmin.laut.fm/";
 
-    // Radioadmin sends track searches to its own host ("searchHost" in radioadmin.laut.fm/client/_/config.json).
-    public const string SearchBase = "https://search.api.radioadmin.laut.fm/";
+    // Track search has its own host: "searchHost" in radioadmin.laut.fm/client/_/config.json.
+    private const string SearchBase = "https://search.api.radioadmin.laut.fm/";
 
     public string Name => "laut.fm";
 
@@ -30,12 +27,12 @@ public class LautFmProvider(HttpClient http, Func<AppSettings> settings) : IMusi
         if (words.Length == 0)
             return [];
 
-        // The API filters one field at a time, so title and artist are two searches.
+        // API filters one field per request: title and artist separately.
         var url = $"{SearchBase}stations/{Uri.EscapeDataString(station)}/tracks?";
         var results = await Task.WhenAll(
             SearchFieldAsync($"{url}title={Uri.EscapeDataString(words)}", current.LautFmToken, cancellationToken),
             SearchFieldAsync($"{url}artist={Uri.EscapeDataString(words)}", current.LautFmToken, cancellationToken));
-        return results.SelectMany(tracks => tracks).DistinctBy(track => track.Id).ToList();
+        return [.. results.SelectMany(tracks => tracks).DistinctBy(track => track.Id)];
     }
 
     private async Task<List<MusicTrack>> SearchFieldAsync(string url, string token, CancellationToken cancellationToken)
@@ -44,7 +41,7 @@ public class LautFmProvider(HttpClient http, Func<AppSettings> settings) : IMusi
         if (!json.RootElement.TryGetProperty("tracks", out var tracks) || tracks.ValueKind != JsonValueKind.Array)
             throw new MusicProviderException($"{Name}-Suche fehlgeschlagen: unerwartete Antwort.");
 
-        var result = new List<MusicTrack>();
+        List<MusicTrack> result = [];
         foreach (var track in tracks.EnumerateArray())
         {
             if (ProviderParsing.Text(track, "id") is not { } id
@@ -53,13 +50,11 @@ public class LautFmProvider(HttpClient http, Func<AppSettings> settings) : IMusi
                 continue;
             result.Add(new MusicTrack
             {
-                // Prefixed, so the id cannot collide with one from another provider.
                 Id = $"lautfm:{id}",
                 Title = title,
                 Creator = ProviderParsing.Text(track, "artist"),
                 Url = audio,
                 FileType = "mp3",
-                // The station's tracks are licensed by laut.fm for broadcasting on laut.fm only.
                 License = "laut.fm (nur für laut.fm)",
                 Duration = ProviderParsing.Duration(ProviderParsing.Text(track, "duration")),
             });
@@ -67,7 +62,7 @@ public class LautFmProvider(HttpClient http, Func<AppSettings> settings) : IMusi
         return result;
     }
 
-    // The link the Radioadmin player uses; it needs no login. Relative links are taken against the API.
+    // Radioadmin player link, no login; relative to ApiBase; https only.
     private static string? PrelistenUrl(JsonElement track)
     {
         if (!track.TryGetProperty("_links", out var links) || links.ValueKind != JsonValueKind.Object

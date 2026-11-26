@@ -1,16 +1,14 @@
 using System.Globalization;
+using System.Net;
 using System.Net.Http;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
-namespace Radiosender.Services;
+namespace Radiosender.Services.Providers;
 
-/// <summary>Helpers for JSON-based music providers: fetching, and reading licenses and durations.</summary>
 internal static partial class ProviderParsing
 {
-    /// <summary>Fetches <paramref name="url"/> and parses it as JSON, whatever content type the server names.</summary>
-    /// <param name="bearerToken">Sent as the Authorization header when set.</param>
-    /// <exception cref="MusicProviderException">The request failed or the answer is not JSON.</exception>
+    /// <exception cref="MusicProviderException">Request failed or answer is not JSON.</exception>
     public static async Task<JsonDocument> GetJsonAsync(HttpClient http, string url, string provider, CancellationToken cancellationToken, string? bearerToken = null)
     {
         try
@@ -19,11 +17,11 @@ internal static partial class ProviderParsing
             if (bearerToken is not null)
                 request.Headers.Authorization = new("Bearer", bearerToken);
             using var response = await http.SendAsync(request, cancellationToken);
-            if (response.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden && bearerToken is not null)
+            if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden && bearerToken is not null)
                 throw new MusicProviderException($"{provider} hat die Anmeldung abgelehnt. Den Token in den Einstellungen prüfen.");
             if (!response.IsSuccessStatusCode)
                 throw new MusicProviderException($"{provider} hat HTTP {(int)response.StatusCode} geliefert.");
-            // Parsed without looking at the content type: not every API labels its JSON as such.
+            // Content type ignored: not every API labels JSON.
             return JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
         }
         catch (Exception e) when (e is not MusicProviderException && !cancellationToken.IsCancellationRequested)
@@ -37,10 +35,7 @@ internal static partial class ProviderParsing
         }
     }
 
-    /// <summary>
-    /// The property as text: a string as it is, a number as its digits, and the first entry of a list
-    /// (the Internet Archive sends one creator as a string and several as a list). Otherwise <c>null</c>.
-    /// </summary>
+    // String, number digits, or first array entry (Archive: one creator as string, several as list).
     public static string? Text(JsonElement element, string property)
     {
         if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty(property, out var value))
@@ -49,14 +44,13 @@ internal static partial class ProviderParsing
             value = value.EnumerateArray().FirstOrDefault();
         var text = value.ValueKind switch
         {
-            JsonValueKind.String => System.Net.WebUtility.HtmlDecode(value.GetString()),
+            JsonValueKind.String => WebUtility.HtmlDecode(value.GetString()),
             JsonValueKind.Number => value.GetRawText(),
             _ => null,
         };
         return string.IsNullOrWhiteSpace(text) ? null : text.Trim();
     }
 
-    /// <summary>Readable name for a Creative Commons license URL, e.g. "CC BY-NC 3.0"; <c>null</c> for anything else.</summary>
     public static string? License(string? url)
     {
         if (url is null)
@@ -68,7 +62,7 @@ internal static partial class ProviderParsing
         return null;
     }
 
-    /// <summary>Reads "2:36", "05:32", "1:02:03" or seconds such as "3808.26"; <c>null</c> when it is none of them.</summary>
+    // "2:36", "1:02:03" or seconds "3808.26".
     public static TimeSpan? Duration(string? text)
     {
         if (string.IsNullOrWhiteSpace(text))
@@ -81,7 +75,7 @@ internal static partial class ProviderParsing
                 return null;
             seconds = seconds * 60 + value;
         }
-        // An upper bound keeps a nonsense value from overflowing TimeSpan.
+        // Upper bound: no TimeSpan overflow on nonsense.
         return parts.Length <= 3 && seconds is > 0 and < 86400 ? TimeSpan.FromSeconds(seconds) : null;
     }
 

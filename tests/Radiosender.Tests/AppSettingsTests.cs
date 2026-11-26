@@ -1,4 +1,4 @@
-using Radiosender.Services;
+using Radiosender.Services.Settings;
 
 namespace Radiosender.Tests;
 

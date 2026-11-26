@@ -5,33 +5,11 @@ using System.Text;
 using NAudio.MediaFoundation;
 using NAudio.Wave;
 
-namespace Radiosender.Services;
+namespace Radiosender.Services.Streaming;
 
-/// <summary>Error of a live stream, with a message that can be shown to the user as is.</summary>
-public class LiveStreamException(string message, Exception? inner = null) : Exception(message, inner);
-
-/// <summary>Where and how a live source logs in. laut.fm shows these values in Radioadmin under "Live senden".</summary>
-public record IcecastTarget(string Host, int Port, string Mount, string User, string Password)
-{
-    public string Path => Mount.StartsWith('/') ? Mount : "/" + Mount;
-
-    public static IcecastTarget From(AppSettings settings) => new(
-        settings.LautFmHost.Trim(), settings.LautFmPort, settings.LautFmMount.Trim(), settings.LautFmUser.Trim(), settings.LautFmPassword);
-
-    /// <summary>Value of the Basic authorization header.</summary>
-    public string Credentials => Convert.ToBase64String(Encoding.UTF8.GetBytes($"{User}:{Password}"));
-
-    // The password stays out of logs and debugger views.
-    public override string ToString() => $"{User}@{Host}:{Port}{Path}";
-}
-
-/// <summary>
-/// A source connection to an Icecast server, which is what laut.fm takes for live broadcasts.
-/// Reads 32-bit float audio from a feed and sends it as MP3 at 128 kbit/s until disposed.
-/// </summary>
 public sealed class IcecastStream : IDisposable
 {
-    public const int Bitrate = 128_000;
+    private const int Bitrate = 128_000;
     private static readonly TimeSpan ConnectTimeout = TimeSpan.FromSeconds(10);
 
     private readonly TcpClient _client;
@@ -46,17 +24,13 @@ public sealed class IcecastStream : IDisposable
         _thread = new Thread(Run) { IsBackground = true, Name = "Icecast stream" };
     }
 
-    /// <summary>The connection broke or the encoder stopped. Raised on the stream's own thread.</summary>
+    /// <summary>Raised on the stream's own thread.</summary>
     public event EventHandler<string>? Failed;
 
-    /// <summary>Logs in at the server and starts sending.</summary>
-    /// <param name="target">Server and login.</param>
-    /// <param name="feed">32-bit float audio that returns 0 bytes while nothing new is there, like <see cref="BufferedWaveProvider"/>.</param>
-    /// <param name="cancellationToken">Cancels the login.</param>
-    /// <exception cref="LiveStreamException">The server cannot be reached or refused the login.</exception>
+    /// <exception cref="LiveStreamException">Server unreachable or login refused.</exception>
     public static async Task<IcecastStream> ConnectAsync(IcecastTarget target, IWaveProvider feed, CancellationToken cancellationToken = default)
     {
-        // These values end up in the request line and headers; a line break there would change the request.
+        // Security: values go into request line/headers; a line break would inject headers.
         if (new[] { target.Host, target.Path, target.User }.Any(value => value.Any(c => char.IsWhiteSpace(c) || char.IsControl(c)))
             || target.User.Contains(':'))
             throw new LiveStreamException("Server, Mountpoint oder Benutzer enthalten ungültige Zeichen.");
@@ -109,11 +83,10 @@ public sealed class IcecastStream : IDisposable
         }
     }
 
-    /// <summary>Sets the title listeners see, through the server's admin interface with the same login.</summary>
     /// <exception cref="LiveStreamException">The server did not take the title.</exception>
     public static async Task UpdateTitleAsync(HttpClient http, IcecastTarget target, string title, CancellationToken cancellationToken = default)
     {
-        // Plain http, like the source connection itself: Icecast takes sources without TLS.
+        // Plain http like the source connection: Icecast takes sources without TLS.
         var url = new UriBuilder(Uri.UriSchemeHttp, target.Host, target.Port, "/admin/metadata")
         {
             Query = $"mount={Uri.EscapeDataString(target.Path)}&mode=updinfo&song={Uri.EscapeDataString(title)}",
@@ -132,12 +105,11 @@ public sealed class IcecastStream : IDisposable
         }
     }
 
-    /// <summary>Stops sending and closes the connection.</summary>
     public void Dispose()
     {
         _stopping = true;
         _reader.Stop();
-        // The encoder ends once the reader returns 0; a stalled connection is cut by closing the socket.
+        // Encoder ends when reader returns 0; stalled connection is cut by closing the socket.
         if (Thread.CurrentThread != _thread && _thread.IsAlive)
             _thread.Join(TimeSpan.FromSeconds(2));
         _client.Dispose();
@@ -158,7 +130,7 @@ public sealed class IcecastStream : IDisposable
         }
         catch (Exception ex)
         {
-            // While stopping, closing the socket under the encoder is expected.
+            // Stopping: socket closed under the encoder is expected.
             if (!_stopping)
                 Failed?.Invoke(this, ex is LiveStreamException ? ex.Message : $"Verbindung zu laut.fm verloren: {ex.Message}");
         }
@@ -175,14 +147,13 @@ public sealed class IcecastStream : IDisposable
                 throw new LiveStreamException("Der Server hat die Verbindung ohne gültige Antwort beendet.");
             header.Append(Encoding.ASCII.GetString(buffer, 0, read));
         }
-        // "HTTP/1.1 100 Continue" or "HTTP/1.0 200 OK"
         var parts = header.ToString().Split(' ', 3);
         return parts.Length >= 2 && int.TryParse(parts[1], out var status)
             ? status
             : throw new LiveStreamException("Der Server hat ungültig geantwortet.");
     }
 
-    /// <summary>Waits for audio instead of ending when the feed is empty, so the encoder keeps going in real time.</summary>
+    // Empty feed: wait instead of ending, so the encoder runs in real time.
     private sealed class FeedReader(IWaveProvider feed) : IWaveProvider
     {
         private volatile bool _stopped;
@@ -200,7 +171,7 @@ public sealed class IcecastStream : IDisposable
                     return read;
                 Thread.Sleep(10);
             }
-            return 0; // the encoder finishes and returns
+            return 0; // encoder finishes
         }
     }
 }

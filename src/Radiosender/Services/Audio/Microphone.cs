@@ -1,8 +1,7 @@
 using NAudio.Wave;
 
-namespace Radiosender.Services;
+namespace Radiosender.Services.Audio;
 
-/// <summary>Puts the default recording device on air through the <see cref="ProgramOutput"/>, so the speaker can talk over or between items.</summary>
 public sealed class Microphone(ProgramOutput output) : IDisposable
 {
     private readonly Lock _lock = new();
@@ -14,7 +13,7 @@ public sealed class Microphone(ProgramOutput output) : IDisposable
         get { lock (_lock) return _capture is not null; }
     }
 
-    /// <exception cref="InvalidOperationException">No microphone or no output device can be opened; the message can be shown to the user.</exception>
+    /// <exception cref="InvalidOperationException">No mic or output device; message is user-facing.</exception>
     public void TurnOn()
     {
         lock (_lock)
@@ -25,7 +24,7 @@ public sealed class Microphone(ProgramOutput output) : IDisposable
                 throw new InvalidOperationException("Es wurde kein Mikrofon gefunden.");
 
             var capture = new WaveIn { WaveFormat = new WaveFormat(44100, 16, 1), BufferMilliseconds = 30 };
-            // A short buffer that drops what it cannot hold: speech must not fall further and further behind.
+            // Short dropping buffer: speech must not drift further behind.
             var buffer = new BufferedWaveProvider(capture.WaveFormat, TimeSpan.FromMilliseconds(300)) { DiscardOnBufferOverflow = true };
             capture.DataAvailable += (_, e) => buffer.AddSamples(e.Buffer, 0, e.BytesRecorded);
             try
@@ -49,7 +48,7 @@ public sealed class Microphone(ProgramOutput output) : IDisposable
             if (_input is not null)
                 output.Remove(_input);
             _input = null;
-            _capture?.Dispose(); // stops the recording
+            _capture?.Dispose();
             _capture = null;
         }
     }

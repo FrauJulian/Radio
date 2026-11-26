@@ -1,5 +1,5 @@
 using NAudio.Wave;
-using Radiosender.Services;
+using Radiosender.Services.Audio;
 
 namespace Radiosender.Tests;
 

@@ -19,7 +19,6 @@ public partial class LibraryPage : Page
 
     private Song? Selected => SongList.SelectedItem as Song;
 
-    // Loaded fires on every navigation to the page, so the list is reloaded from the database each time.
     private void OnLoaded(object sender, RoutedEventArgs e) => Refresh();
 
     private void OnSearchChanged(object sender, TextChangedEventArgs e) => Refresh();
