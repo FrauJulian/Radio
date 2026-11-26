@@ -667,6 +667,12 @@ public partial class SchedulePage : Page
 
     private void ShowMessage(InfoBarSeverity severity, string title, string text)
     {
+        if (severity == InfoBarSeverity.Error)
+        {
+            Message.IsOpen = false;
+            ErrorPopup.Show(this, title, text);
+            return;
+        }
         Message.Severity = severity;
         Message.Title = title;
         Message.Message = text;

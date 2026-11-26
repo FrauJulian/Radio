@@ -33,7 +33,7 @@ public partial class ScheduleItemEditWindow : FluentWindow
             if (!TimeSpan.TryParseExact(DurationBox.Text.Trim(), DurationFormats, CultureInfo.InvariantCulture, out var duration)
                 || duration <= TimeSpan.Zero)
             {
-                ErrorText.Visibility = Visibility.Visible;
+                ErrorPopup.Show(this, Loc.T("Error_InvalidInput"), Loc.T("ItemEdit_LengthError"));
                 return;
             }
             Duration = duration;

@@ -1,4 +1,5 @@
 using System.Windows;
+using Radiosender.Services.Localization;
 using Radiosender.Models;
 using Wpf.Ui.Controls;
 
@@ -24,7 +25,7 @@ public partial class SongEditWindow : FluentWindow
     {
         if (string.IsNullOrWhiteSpace(SongTitle) || string.IsNullOrWhiteSpace(Artist))
         {
-            ErrorText.Visibility = Visibility.Visible;
+            ErrorPopup.Show(this, Loc.T("Error_InvalidInput"), Loc.T("SongEdit_Required"));
             return;
         }
 

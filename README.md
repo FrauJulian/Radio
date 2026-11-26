@@ -48,6 +48,8 @@ The interface is in German. This section names the controls as they appear on sc
 
 News, ads and moderator talk are placeholders: the app shows them in the timeline and keeps silent for their duration, so the speaker can talk live.
 
+Errors, such as invalid input or a failed save, search or import, open a popup with the message. Hints and warnings stay in the bar at the top of the page.
+
 ## How the schedule is built
 
 `ScheduleGenerator` plans in half-hour slots:

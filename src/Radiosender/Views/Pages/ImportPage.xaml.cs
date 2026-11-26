@@ -322,6 +322,12 @@ public partial class ImportPage : Page
 
     private void Show(InfoBarSeverity severity, string title, string message)
     {
+        if (severity == InfoBarSeverity.Error)
+        {
+            Message.IsOpen = false;
+            ErrorPopup.Show(this, title, message);
+            return;
+        }
         Message.Severity = severity;
         Message.Title = title;
         Message.Message = message;

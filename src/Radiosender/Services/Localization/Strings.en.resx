@@ -8,6 +8,7 @@
   <data name="Audio_FileUnreadable" xml:space="preserve"><value>Audio file cannot be read: {0}</value></data>
   <data name="Audio_MicrophoneFailed" xml:space="preserve"><value>The microphone could not be turned on: {0}</value></data>
   <data name="Audio_NoMicrophone" xml:space="preserve"><value>No microphone was found.</value></data>
+  <data name="Error_InvalidInput" xml:space="preserve"><value>Invalid input</value></data>
   <data name="Import_AllLicenses" xml:space="preserve"><value>All licenses</value></data>
   <data name="Import_ChooseFiles" xml:space="preserve"><value>Choose files...</value></data>
   <data name="Import_ColCreator" xml:space="preserve"><value>Creator</value></data>
