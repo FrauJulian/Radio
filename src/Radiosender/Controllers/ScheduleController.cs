@@ -190,6 +190,22 @@ public class ScheduleController
     /// <exception cref="ScheduleException">Item on air or over.</exception>
     public IReadOnlyList<ScheduleItem> Remove(int index) => Change(index, change: items => items.RemoveAt(index));
 
+    /// <exception cref="ScheduleException">Nothing on air.</exception>
+    public IReadOnlyList<ScheduleItem> EndCurrentNow()
+    {
+        var index = CurrentIndex;
+        if (CurrentItem is null)
+            throw new ScheduleException(Loc.T("Schedule_NothingOnAirError"));
+        var now = _now();
+        // Whole seconds: next start not in the future.
+        var end = new DateTime(now.Ticks - now.Ticks % TimeSpan.TicksPerSecond, now.Kind);
+        return Change(index, currentAllowed: true, change: items =>
+        {
+            var item = items[index];
+            items[index] = item with { Duration = end > item.Start ? end - item.Start : TimeSpan.Zero };
+        });
+    }
+
     /// <exception cref="ScheduleException">Edit not allowed for item, or item over.</exception>
     public IReadOnlyList<ScheduleItem> EditItem(int index, string title, TimeSpan duration) => Change(index, currentAllowed: true, change: items =>
     {

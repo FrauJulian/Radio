@@ -311,6 +311,20 @@ public partial class SchedulePage : Page
         System.Windows.Automation.AutomationProperties.SetName(StartNowButton, (string)StartNowButton.Content);
     }
 
+    private void OnEndNow(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            _controller.EndCurrentNow();
+            Message.IsOpen = false;
+        }
+        catch (ScheduleException ex)
+        {
+            ShowMessage(InfoBarSeverity.Error, Loc.T("Schedule_EndItemFailed"), ex.Message);
+        }
+        ShowCurrent();
+    }
+
     private void OnRemove(object sender, RoutedEventArgs e) => ChangeSelected(row => _controller.Remove(row.Index));
 
     private void OnAddItem(object sender, RoutedEventArgs e)
@@ -600,6 +614,7 @@ public partial class SchedulePage : Page
         RemoveButton.IsEnabled = Editable(index);
         var onAir = !_working && playing && index >= 0 && index == current;
         EditItemButton.IsEnabled = (Editable(index) || onAir) && row!.Item.Kind != ScheduleItemKind.Song;
+        EndNowButton.IsEnabled = !_working && _expectPlaying != false && _controller.CurrentItem is not null;
 
         var blocker = row switch
         {

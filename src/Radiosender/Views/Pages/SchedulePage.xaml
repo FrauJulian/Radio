@@ -134,10 +134,17 @@
                         <!-- Live microphone on the program channel; label and icon say whether it is on. -->
                         <ui:Button x:Name="MicButton"
                                    MinWidth="120"
+                                   Margin="0,0,20,0"
                                    Content="{l:Tr Schedule_MicOn}"
                                    Icon="{ui:SymbolIcon Mic24}"
                                    ToolTip="{l:Tr Schedule_MicTip}"
                                    Click="OnMicToggle" />
+                        <ui:Button x:Name="EndNowButton"
+                                   Content="{l:Tr Schedule_EndNow}"
+                                   Icon="{ui:SymbolIcon Stop24}"
+                                   ToolTip="{l:Tr Schedule_EndNowTip}"
+                                   IsEnabled="False"
+                                   Click="OnEndNow" />
                     </StackPanel>
                 </Grid>
 
